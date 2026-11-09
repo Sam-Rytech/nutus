@@ -39,15 +39,29 @@ DEPLOYER=you.testnet sh scripts/testnet-deploy.sh
 
 This builds the wasm, deploys the instance code **as a global contract by hash**, creates `c1/c2/c3.<you>` as the council, deploys `tusdc.<you>` (test-only token, anyone can mint) and `nutus.<you>` (factory, pinned to the hash, accepts `tusdc.<you>` and DAOs from `sputnikv2.testnet`), creates `nutus-demo.sputnikv2.testnet` and mints it 10,000 tUSDC. Addresses go to `deployments/testnet.env` (H2/H3 for Builder B).
 
+The deploy also registers the factory with the setup token (once per token). Without it, the DAO's `ft_transfer_call` to the factory panics with "not registered" and the setup proposal fails. The same step is needed for USDC and USDT on mainnet.
+
+## Current deployment (2026-11-09)
+
+| What | Account |
+|:--|:--|
+| Deployer | `nutus-dev.testnet` |
+| Instance code (global, by hash) | `9C622Ttng5hKSgv2KYVZBSTTk8THdaW8szvAKkuq4jo9` |
+| Factory | `nutus.nutus-dev.testnet` |
+| Test token (tUSDC, 6 decimals) | `tusdc.nutus-dev.testnet` |
+| Demo DAO (Sputnik v2) | `nutus-demo.sputnikv2.testnet` |
+| Council | `c1` / `c2` / `c3.nutus-dev.testnet` |
+| Demo instance | `nutus-demo.nutus.nutus-dev.testnet` (5,000 tUSDC, lane `design`) |
+
 ## 3. Set up through a real DAO proposal
 
 ```bash
 sh scripts/testnet-setup.sh
 ```
 
-`c1` files one FunctionCall proposal on the token (`storage_deposit` for the instance + `ft_transfer_call` to the factory with `setup:<config>`); `c2` and `c3` approve. The script then prints the instance's token books and config.
+`PROPOSAL_ID=<n>` resumes a proposal that is already filed. `c1` files one FunctionCall proposal on the token (`storage_deposit` for the instance + `ft_transfer_call` to the factory with `setup:<config>`); `c2` and `c3` approve. The script then prints the instance's token books and config.
 
-**This answers Q2.** If the instance exists and holds 5,000 tUSDC, create + global code + init + forward fit inside one `ft_on_transfer` with 250 TGas. If not, check the failing receipt in the explorer and record it in `PROGRESS.md`.
+**This answered Q2 (yes): the whole chain burned ~37 TGas, of which the create batch was 10.4 TGas.** If the instance exists and holds 5,000 tUSDC, create + global code + init + forward fit inside one `ft_on_transfer` with 250 TGas. If not, check the failing receipt in the explorer and record it in `PROGRESS.md`.
 
 ## 4. Log it
 

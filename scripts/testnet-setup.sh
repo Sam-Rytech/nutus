@@ -49,21 +49,24 @@ BOND=$(near contract call-function as-read-only "$DAO" get_policy json-args '{}'
 echo "DAO proposal bond: $BOND yocto"
 BOND_NEAR=$($PY -c "print(int('$BOND')/1e24)")
 
-echo "== $C1 files the setup proposal"
-near contract call-function as-transaction "$DAO" add_proposal \
-  json-args "{\"proposal\":{\"description\":\"Set up Nutus: design lane, 5,000 tUSDC budget\",\"kind\":$KIND}}" \
-  prepaid-gas '50.0 Tgas' attached-deposit "$BOND_NEAR NEAR" sign-as "$C1" $NET $SIGN
-
-ID=$(near contract call-function as-read-only "$DAO" get_last_proposal_id json-args '{}' $NET now 2>/dev/null \
-  | $PY -c "import sys,re; print(int(re.findall(r'\d+', sys.stdin.read())[-1]) - 1)")
+# PROPOSAL_ID=<n> resumes an already-filed setup proposal (just votes).
+if [ -z "${PROPOSAL_ID:-}" ]; then
+  echo "== $C1 files the setup proposal"
+  near contract call-function as-transaction "$DAO" add_proposal     json-args "{\"proposal\":{\"description\":\"Set up Nutus: design lane, 5,000 tUSDC budget\",\"kind\":$KIND}}"     prepaid-gas '50.0 Tgas' attached-deposit "$BOND_NEAR NEAR" sign-as "$C1" $NET $SIGN
+  LAST=$(near contract call-function as-read-only "$DAO" get_last_proposal_id json-args '{}' $NET now 2>/dev/null     | $PY -c "import sys,re; print(re.search(r'^\s*(\d+)\s*$', sys.stdin.read(), re.M).group(1))")
+  PROPOSAL_ID=$((LAST - 1))
+fi
+ID=$PROPOSAL_ID
 echo "proposal id: $ID"
 
-for voter in "$C2" "$C3"; do
-  echo "== $voter votes approve"
-  near contract call-function as-transaction "$DAO" act_proposal \
-    json-args "{\"id\":$ID,\"action\":\"VoteApprove\",\"proposal\":$KIND}" \
-    prepaid-gas '300.0 Tgas' attached-deposit '0 NEAR' sign-as "$voter" $NET $SIGN
-done
+# Default policy: 2 of 3 approve. The first vote is cheap; the deciding vote
+# executes the proposal (10 + 250 TGas of actions), so it carries 300 TGas.
+vote() {
+  echo "== $1 votes approve ($2)"
+  near contract call-function as-transaction "$DAO" act_proposal     json-args "{\"id\":$ID,\"action\":\"VoteApprove\",\"proposal\":$KIND}"     prepaid-gas "$2" attached-deposit '0 NEAR' sign-as "$1" $NET $SIGN
+}
+vote "$C2" '50.0 Tgas'
+vote "$C3" '300.0 Tgas'
 
 echo "== Result"
 near contract call-function as-read-only "$FACTORY" get_instance json-args "{\"dao\":\"$DAO\"}" $NET now

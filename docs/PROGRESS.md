@@ -16,9 +16,9 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | Area | Owner | Status |
 |:--|:--|:--|
 | Planning and naming | AB | [x] done |
-| Interfaces frozen | A → B | [~] ABI committed; B to generate types.ts |
+| Interfaces frozen | A → B | [~] ABI committed; B to generate types.ts. H2/H3 ready: `deployments/testnet.env` |
 | Instance contract | A | [x] every §4.5 method implemented; 80 unit tests. Integration tests (Phase 5) next |
-| Factory and setup | A | [~] factory done (NEAR + USDC paths, refunds, anti-drain); testnet deploy waiting on a funded account |
+| Factory and setup | A | [x] deployed on testnet; demo DAO set up through a real proposal |
 | Contract tests | A | [ ] |
 | Keeper | A | [ ] |
 | Report port | B | [ ] |
@@ -84,9 +84,9 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 ## Phase 4: Factory and testnet
 **A**
 - [x] Factory: global code by hash, `create` (NEAR path), `ft_on_transfer` setup (USDC path), refund on failure (15 unit tests)
-- [~] Verify gas: create + global code + init + forward in one `ft_on_transfer` (else split) — `scripts/testnet-setup.sh` answers it on testnet
-- [~] Deploy global code, factory and test tokens to testnet — **H2/H3**. `scripts/testnet-deploy.sh` + `docs/TESTNET.md` ready; needs a funded testnet account (A)
-- [~] Testnet DAO with 3 council members (Sputnik v2) — created by `scripts/testnet-deploy.sh`
+- [x] Verify gas: create + global code + init + forward in one `ft_on_transfer` — yes, ~37 TGas for the whole chain on testnet
+- [x] Deploy global code, factory and test tokens to testnet — **H2/H3**: addresses in `deployments/testnet.env` and `docs/TESTNET.md`
+- [x] Testnet DAO with 3 council members (Sputnik v2): `nutus-demo.sputnikv2.testnet`
 
 **B**
 - [ ] Swap mocks for live testnet calls
@@ -130,7 +130,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | # | Question | Owner | Status |
 |:--|:--|:--|:--|
 | Q1 | Mainnet USDC/USDT storage deposit amount; auto-registration? | A | [ ] |
-| Q2 | Can one `ft_on_transfer` create, attach global code, init and forward within gas? | A | [~] budget ≈ 30 init + 90 callback + 50 forward + 10 TGas; run `scripts/testnet-setup.sh` (250 TGas) to confirm |
+| Q2 | Can one `ft_on_transfer` create, attach global code, init and forward within gas? | A | [x] Yes. Whole chain burned ~37 TGas on testnet (create batch 10.4) |
 | Q3 | How does Trezu display FunctionCall proposals to arbitrary contracts? | B | [ ] |
 | Q4 | Overlap with the four Social Money entries / Trezu roadmap? | AB | [ ] |
 | Q5 | Instance name = first label of the DAO account (`x.sputnik-dao.near` → `x.nutus.near`). Two DAOs with the same first label under different factories would collide; hash or full-name scheme? | A | [x] Factory only accepts direct children of allow-listed DAO factories; a collision fails account creation and refunds the DAO |
@@ -170,11 +170,24 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | 2026-11-09 | Instance `new` is payable (NEAR path budget) and its `ft_on_transfer` also accepts `"fund"` from its own factory | The factory forwards the DAO's setup tokens; the factory's code is fixed by hash, so this adds no trust |
 | 2026-11-09 | Token-path setup: create batch → forward with `ft_transfer_call` → return what the instance didn't take | If any step fails, `ft_resolve_transfer` returns the tokens to the DAO |
 | 2026-11-09 | Test-only NEP-141 in `contracts/test-token` (anyone can mint) | Testnet demo and Phase 5 integration tests need a token we control |
+| 2026-11-09 | The factory registers itself once with each setup token at deploy | Found on testnet: `ft_transfer_call` to an unregistered factory panics, failing the whole setup proposal. Registering once keeps setup at one proposal, two actions |
+| 2026-11-09 | Global instance code costs ~33.5 NEAR (335 KB, burned) | Measured on testnet; matches 10 NEAR / 100 KB. One-off, same on mainnet |
+| 2026-11-09 | Spec V2 needs a note: Sputnik kept the 1 NEAR bond when a proposal's execution **Failed** (proposal 0 on testnet) | V2 lists approve / reject / expire as refunding. A failed escalation would cost the bond float its bond; keep failures rare with preflight |
 
 ## Testnet log
 | Date | Action | Tx / account | By |
 |:--|:--|:--|:--|
-| | | | |
+| 2026-11-09 | Instance code deployed as global contract (hash `9C622Ttng5hKSgv2KYVZBSTTk8THdaW8szvAKkuq4jo9`) | `FiJgcrxrYV4CDrWU79Ufsp9bmas3h6ddVAHqUMm4aSd6` | A |
+| 2026-11-09 | Council accounts c1 / c2 / c3.nutus-dev.testnet | `H8F6K9ZCZefMkLYbdpEM2Xf1AY6UEpcL72iZdu9DazCw`, `HLePzArZCkfPXgetxK65mVw2fMyFta4YXbyC9aMJN9sd`, `CscZScbUkfiwKf8DJMdhYyS24X3JLWwDdyLa4661vTMu` | A |
+| 2026-11-09 | Test token tusdc.nutus-dev.testnet deployed | `4dAmSfkpumQop2c3gHEAoMMLhgeZz1CJdZaQoqzFfq4q` | A |
+| 2026-11-09 | Factory nutus.nutus-dev.testnet deployed | `AXKcsDSRgB9q5t4WTDZ2rJUf5whR59Wce6FhfkKz6dTj` | A |
+| 2026-11-09 | Demo DAO nutus-demo.sputnikv2.testnet created | `7HJ6DMXTqVzvLY8U87pLmtQYiZskrjEc8AuVegpYHvWB` | A |
+| 2026-11-09 | 10,000 tUSDC minted to the DAO | `ALvAqbAGghbyBM6dFCFtdXybtKHqvfGnTFC4uxRas77A` | A |
+| 2026-11-09 | Setup proposal 0 **failed** (factory not registered with tUSDC); bond kept by Sputnik | `HCsoukgcRKKGdBquiuSwwFyxu1ZvUk9xcqQM4rCghyns` | A |
+| 2026-11-09 | Factory registered with tUSDC | `8M77YfKCfhhUqPzryjeqLyYj4KgS2onBwrbeJknFgck6` | A |
+| 2026-11-09 | Setup proposal 1 filed by c1 | `2vFSWH5o5Nvn6kfMkipEe3uyv5AzbZBhxYg7gJkN974Y` | A |
+| 2026-11-09 | c2 approves | `HB8WhZJuHYW8Lmypq19VdUbmQ3nz7gbh9nLdtRFkJq1r` | A |
+| 2026-11-09 | c3 approves → instance nutus-demo.nutus.nutus-dev.testnet created and funded with 5,000 tUSDC (~37 TGas) | `3NgUssKdxvofTFLjaJSfKSqQygD8BAaDHPvVs2oEqTMx` | A |
 
 ## Blockers
 _None yet._

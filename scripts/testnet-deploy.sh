@@ -79,6 +79,14 @@ near contract deploy "$FACTORY" use-file "$FACTORY_WASM" \
   with-init-call new json-args "{\"instance_code_hash\":\"$HASH\",\"setup_tokens\":[\"$TOKEN\"],\"dao_factories\":[\"sputnikv2.testnet\"]}" \
   prepaid-gas '30.0 Tgas' attached-deposit '0 NEAR' $NET $SIGN
 
+step "Register the factory with $TOKEN"
+# ft_transfer_call panics if the receiver isn't registered with the token. The
+# DAO's setup proposal registers the new instance; the factory registers once
+# here, so setup stays one proposal with two actions.
+near contract call-function as-transaction "$TOKEN" storage_deposit \
+  json-args "{\"account_id\":\"$FACTORY\",\"registration_only\":true}" \
+  prepaid-gas '30.0 Tgas' attached-deposit '0.00125 NEAR' sign-as "$DEPLOYER" $NET $SIGN
+
 step "Create demo DAO $DAO (Sputnik v2, council: $COUNCIL)"
 ARGS=$($PY -c "
 import base64, json, sys
