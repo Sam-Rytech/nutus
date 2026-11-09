@@ -33,7 +33,12 @@ jobs:
             packages/core/abi/*.json
             target/near/nutus_*/*.wasm
       - name: Check committed ABI is up to date
-        run: git add -N packages/core/abi && git diff --exit-code packages/core/abi || (echo "ABI changed: run scripts/abi.sh (or take the 'contracts' artifact) and commit packages/core/abi" && exit 1)
+        run: |
+          git add -N packages/core/abi
+          if ! git diff --exit-code packages/core/abi; then
+            echo "ABI changed. Run scripts/abi.sh (or take the 'contracts' artifact) and commit packages/core/abi"
+            exit 1
+          fi
 
   js:
     runs-on: ubuntu-latest
