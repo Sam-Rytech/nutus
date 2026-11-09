@@ -17,8 +17,8 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 |:--|:--|:--|
 | Planning and naming | AB | [x] done |
 | Interfaces frozen | A → B | [~] ABI committed; B to generate types.ts. H2/H3 ready: `deployments/testnet.env` |
-| Instance contract | A | [x] every §4.5 method implemented and tested. Testnet runs the pre-fix code (see Blockers) |
-| Factory and setup | A | [x] deployed on testnet; demo DAO set up through a real proposal |
+| Instance contract | A | [x] every §4.5 method implemented and tested; v2 live on testnet |
+| Factory and setup | A | [x] v2 factory on testnet; demo DAO set up through a real proposal |
 | Contract tests | A | [x] 84 instance + 15 factory unit, property test (I1–I5), 8 sandbox scenarios vs real Sputnik (CI) |
 | Keeper | A | [x] `packages/keeper`; smoke-tested read-only on testnet |
 | Report port | B | [ ] |
@@ -192,6 +192,13 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | 2026-11-09 | Setup proposal 1 filed by c1 | `2vFSWH5o5Nvn6kfMkipEe3uyv5AzbZBhxYg7gJkN974Y` | A |
 | 2026-11-09 | c2 approves | `HB8WhZJuHYW8Lmypq19VdUbmQ3nz7gbh9nLdtRFkJq1r` | A |
 | 2026-11-09 | c3 approves → instance nutus-demo.nutus.nutus-dev.testnet created and funded with 5,000 tUSDC (~37 TGas) | `3NgUssKdxvofTFLjaJSfKSqQygD8BAaDHPvVs2oEqTMx` | A |
+| 2026-11-09 | **v2:** instance code with the escalation fix published globally (hash `3PpH8oo5K8FSecxG7Dod7ptT9dJAyusM5WgN3bxQmhAw`) | `38J71QhTr1nuisKnrrZj8Ts4YxyXPnT8RDAjYeEaW9wu` | A |
+| 2026-11-09 | v2 factory v2.nutus-dev.testnet created + deployed | `8qGg4fxNXBs3wQr6DEk42PavJ71PZGAAcQUsQj76tQWt`, `6ryTi6qxJbrXJKC6HsR3uMbGbxRyDb478fd1gDB2GKRr` | A |
+| 2026-11-09 | v2 factory registered with tUSDC; DAO topped up 10,000 tUSDC | `YcAdDzsw5HGvWyUXnNbYGFCn2WqMRwgrKYRKtAb9HGZ`, `73aRgrBbxwUuysaGPcsqvqLSdsn3cWMRPmfrPsppCy1y` | A |
+| 2026-11-09 | Setup proposal 2 on v2: c1 files, c2 + c3 approve → nutus-demo.v2.nutus-dev.testnet with 5,000 tUSDC | `52L3UzmNyYSjA3pKUCUdPkfhnxvFMRR7xEUMG7XCGFUG`, `9t2sPtNCzuBqZpm12Phqncsz4HyiYfqWL8DReFpnxokc`, `9p8LmCDwEzTbdLoiwf1hUur5L8ryXohxxrJc21qKrM15` | A |
+| 2026-11-09 | Live objection: payout #0 (50 tUSDC to unregistered nutus-fund5.testnet) filed, c2 objects → DAO proposal 3, recipient registered | `Ee2tYXA6R9vJKupVDhWNbbuLv3c6rnavDPwN6ipEWAgQ`, `7K75JTSy3YFkhbhMabcwwuUbDmzPALgAjZFzvydjWvvA` | A |
+| 2026-11-09 | c1 + c3 approve proposal 3 → recipient paid 50 tUSDC by the DAO, 1 NEAR bond back to the instance | `8TiUurSaE5GY39qsJ2qodhquD54ftEo7uiXVEzCXi7D6`, `BbQCCNwrWxQem37pw1MdLy9Y3jyoJ21QFAreRsJouaM7` | A |
+| 2026-11-09 | settle_escalation → payout Settled(approved), record +1 from DaoProposal 3 | `3oazo5EmFaYUvKjpiTb2Mk32EyEoHcy6A5PsFXkFWZ8V` | A |
 
 ## Blockers
-- **Testnet instance code is one fix behind.** The global code on testnet (`9C622Ttn…`) predates the escalation fix (recipient registration). Instances are immutable by design, so updating means publishing the new hash and a new factory (~34 NEAR burned). Deployer has ~2 NEAR. Needed before the demo shows an objection.
+_None._ (Testnet moved to v2 with the escalation fix on 2026-11-09.)
