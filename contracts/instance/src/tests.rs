@@ -893,3 +893,548 @@ fn only_dao_withdraws() {
     call(ALICE, 0, T0);
     let _ = c.withdraw(USDC.into(), U128(1), None);
 }
+
+// ──────────────────────── standing payments ────────────────────────
+
+const PERIOD: u64 = 10 * HOUR;
+const FIRST_DUE: u64 = T0 + PERIOD;
+
+fn standing_input(notice_periods: u32, ends_at: Option<u64>) -> StandingInput {
+    StandingInput {
+        recipient: acc(CAROL),
+        token: USDC.into(),
+        amount: U128(100),
+        period_ns: U64(PERIOD),
+        first_due_ns: U64(FIRST_DUE),
+        ends_at_ns: ends_at.map(U64),
+        notice_periods,
+        memo: Some("maintainer stipend".into()),
+    }
+}
+
+fn add_standing(c: &mut Contract, notice_periods: u32, ends_at: Option<u64>) -> StandingId {
+    call(DAO, 0, T0);
+    c.add_standing(standing_input(notice_periods, ends_at))
+}
+
+fn fund_standing(c: &mut Contract, id: StandingId, amount: u128) {
+    call(USDC, 0, T0);
+    let msg = format!("fund_standing:{}", id.0);
+    assert_eq!(value(c.ft_on_transfer(acc(DAO), U128(amount), msg)), 0);
+}
+
+fn st(c: &Contract, id: StandingId) -> Standing {
+    c.standing_entry(id)
+}
+
+/// Delivers the callback for the in-flight standing transfer.
+fn sent(c: &mut Contract, id: StandingId, now: u64, result: PromiseResult) {
+    let s = st(c, id);
+    assert!(s.sending);
+    let total = usdc(c).reserved.0;
+    let from_notice = matches!(s.state, StandingState::Noticed { .. });
+    let k = (total / s.amount.0) as u32;
+    let prev = U64(s.next_due_ns.0 - u64::from(k) * s.period_ns.0);
+    callback(now, result);
+    c.on_standing_sent(id, k, U128(total), from_notice, prev);
+}
+
+#[test]
+fn add_standing_locks_notice() {
+    let mut c = setup();
+    let id = add_standing(&mut c, 3, None);
+    let b = usdc(&c);
+    assert_eq!(b.committed_notice, U128(300));
+    assert_eq!(available(&b), 9_700);
+    let s = st(&c, id);
+    assert_eq!(s.notice_locked, U128(300));
+    assert_eq!(s.state, StandingState::Active);
+    assert!(has_event("standing_added"));
+    check_i1(&c);
+}
+
+#[test]
+#[should_panic(expected = "INSUFFICIENT_BUDGET")]
+fn add_standing_needs_available_for_notice() {
+    let mut c = setup();
+    call(DAO, 0, T0);
+    c.add_standing(standing_input(101, None));
+}
+
+#[test]
+#[should_panic(expected = "ONLY_DAO")]
+fn only_dao_adds_standing() {
+    let mut c = setup();
+    call(ALICE, 0, T0);
+    c.add_standing(standing_input(1, None));
+}
+
+#[test]
+fn fund_standing_fills_buffer() {
+    let mut c = setup();
+    let id = add_standing(&mut c, 3, None);
+    fund_standing(&mut c, id, 250);
+    let b = usdc(&c);
+    assert_eq!(b.balance, U128(10_250));
+    assert_eq!(b.standing_buffer, U128(250));
+    assert_eq!(available(&b), 9_700);
+    assert_eq!(st(&c, id).buffer, U128(250));
+    assert!(has_event("standing_funded"));
+}
+
+#[test]
+fn pay_due_waits_for_due_date() {
+    let mut c = setup();
+    let id = add_standing(&mut c, 3, None);
+    fund_standing(&mut c, id, 250);
+    call("keeper.near", 0, FIRST_DUE - 1);
+    assert!(c.pay_due(id).is_none());
+}
+
+#[test]
+fn pay_due_pays_every_covered_period() {
+    let mut c = setup();
+    let id = add_standing(&mut c, 3, None);
+    fund_standing(&mut c, id, 250);
+    let now = FIRST_DUE + PERIOD; // two periods due
+    call("keeper.near", 0, now);
+    assert!(c.pay_due(id).is_some());
+    let s = st(&c, id);
+    assert_eq!(s.buffer, U128(50));
+    assert_eq!(s.next_due_ns, U64(FIRST_DUE + 2 * PERIOD));
+    assert_eq!(usdc(&c).reserved, U128(200));
+    check_i1(&c);
+
+    sent(&mut c, id, now, ok());
+    let b = usdc(&c);
+    assert_eq!(b.balance, U128(10_050));
+    assert_eq!(b.reserved, U128(0));
+    assert_eq!(b.standing_buffer, U128(50));
+    assert!(!st(&c, id).sending);
+    assert!(has_event("standing_paid"));
+    check_i1(&c);
+}
+
+#[test]
+fn short_buffer_keeps_payment_due() {
+    let mut c = setup();
+    let id = add_standing(&mut c, 3, None);
+    fund_standing(&mut c, id, 50);
+    call("keeper.near", 0, FIRST_DUE);
+    assert!(c.pay_due(id).is_none());
+    assert!(has_event("standing_short"));
+    assert_eq!(st(&c, id).next_due_ns, U64(FIRST_DUE));
+    assert_eq!(usdc(&c).reserved, U128(0));
+}
+
+#[test]
+fn partial_buffer_pays_what_it_covers() {
+    let mut c = setup();
+    let id = add_standing(&mut c, 3, None);
+    fund_standing(&mut c, id, 150);
+    call("keeper.near", 0, FIRST_DUE + PERIOD);
+    assert!(c.pay_due(id).is_some());
+    assert!(has_event("standing_short"));
+    assert_eq!(usdc(&c).reserved, U128(100));
+    assert_eq!(st(&c, id).next_due_ns, U64(FIRST_DUE + PERIOD));
+}
+
+#[test]
+#[should_panic(expected = "ALREADY_SENDING")]
+fn no_second_pay_while_sending() {
+    let mut c = setup();
+    let id = add_standing(&mut c, 3, None);
+    fund_standing(&mut c, id, 500);
+    call("keeper.near", 0, FIRST_DUE);
+    let _ = c.pay_due(id);
+    let _ = c.pay_due(id);
+}
+
+#[test]
+fn failed_standing_transfer_restores_buffer() {
+    let mut c = setup();
+    let id = add_standing(&mut c, 3, None);
+    fund_standing(&mut c, id, 250);
+    call("keeper.near", 0, FIRST_DUE);
+    let _ = c.pay_due(id);
+    sent(&mut c, id, FIRST_DUE, PromiseResult::Failed);
+    let s = st(&c, id);
+    assert_eq!(s.buffer, U128(250));
+    assert_eq!(s.next_due_ns, U64(FIRST_DUE));
+    let b = usdc(&c);
+    assert_eq!(b.balance, U128(10_250));
+    assert_eq!(b.standing_buffer, U128(250));
+    assert_eq!(b.reserved, U128(0));
+    assert!(has_event("standing_failed"));
+    check_i1(&c);
+}
+
+#[test]
+#[should_panic(expected = "PAUSED")]
+fn pause_stops_regular_standing_payments() {
+    let mut c = setup();
+    let id = add_standing(&mut c, 3, None);
+    fund_standing(&mut c, id, 250);
+    call(DAO, 0, T0);
+    c.pause();
+    call("keeper.near", 0, FIRST_DUE);
+    let _ = c.pay_due(id);
+}
+
+#[test]
+fn stop_starts_notice_and_releases_buffer() {
+    let mut c = setup();
+    let id = add_standing(&mut c, 3, None);
+    fund_standing(&mut c, id, 250);
+    call(DAO, 0, T0 + HOUR);
+    c.stop_standing(id);
+    let s = st(&c, id);
+    assert_eq!(
+        s.state,
+        StandingState::Noticed {
+            notice_started_ns: U64(T0 + HOUR),
+            remaining_periods: 3
+        }
+    );
+    assert_eq!(s.buffer, U128(0));
+    let b = usdc(&c);
+    assert_eq!(b.standing_buffer, U128(0));
+    assert_eq!(b.committed_notice, U128(300));
+    assert_eq!(available(&b), 9_950);
+    assert!(has_event("standing_stopped"));
+    check_i1(&c);
+}
+
+/// I2 with a real standing payment: after stop, the DAO still can't pull notice money.
+#[test]
+#[should_panic(expected = "EXCEEDS_AVAILABLE")]
+fn dao_cannot_withdraw_notice_after_stop() {
+    let mut c = setup();
+    let id = add_standing(&mut c, 3, None);
+    call(DAO, 0, T0);
+    c.stop_standing(id);
+    let _ = c.withdraw(USDC.into(), U128(9_701), None);
+}
+
+#[test]
+fn notice_is_paid_even_while_paused_then_ends() {
+    let mut c = setup();
+    let id = add_standing(&mut c, 3, None);
+    call(DAO, 0, T0);
+    c.stop_standing(id);
+    c.pause();
+
+    let now = FIRST_DUE + PERIOD; // two due
+    call("keeper.near", 0, now);
+    assert!(c.pay_due(id).is_some());
+    let s = st(&c, id);
+    assert_eq!(s.notice_locked, U128(100));
+    assert!(matches!(
+        s.state,
+        StandingState::Noticed {
+            remaining_periods: 1,
+            ..
+        }
+    ));
+    sent(&mut c, id, now, ok());
+    assert!(has_event("standing_paid"));
+
+    let later = FIRST_DUE + 5 * PERIOD; // more due than notice left
+    call("keeper.near", 0, later);
+    assert!(c.pay_due(id).is_some());
+    sent(&mut c, id, later, ok());
+    let s = st(&c, id);
+    assert_eq!(s.state, StandingState::Ended);
+    assert_eq!(s.notice_locked, U128(0));
+    let b = usdc(&c);
+    assert_eq!(b.balance, U128(9_700));
+    assert_eq!(b.committed_notice, U128(0));
+    assert_eq!(available(&b), 9_700);
+    assert!(has_event("standing_ended"));
+    check_i1(&c);
+
+    call("keeper.near", 0, later + PERIOD);
+    assert!(c.pay_due(id).is_none());
+}
+
+#[test]
+fn failed_notice_payment_is_due_again() {
+    let mut c = setup();
+    let id = add_standing(&mut c, 2, None);
+    call(DAO, 0, T0);
+    c.stop_standing(id);
+    call("keeper.near", 0, FIRST_DUE);
+    let _ = c.pay_due(id);
+    sent(&mut c, id, FIRST_DUE, PromiseResult::Failed);
+    let s = st(&c, id);
+    assert_eq!(s.notice_locked, U128(200));
+    assert!(matches!(
+        s.state,
+        StandingState::Noticed {
+            remaining_periods: 2,
+            ..
+        }
+    ));
+    assert_eq!(usdc(&c).committed_notice, U128(200));
+    check_i1(&c);
+}
+
+#[test]
+fn stop_without_notice_ends_now() {
+    let mut c = setup();
+    let id = add_standing(&mut c, 0, None);
+    fund_standing(&mut c, id, 100);
+    call(DAO, 0, T0);
+    c.stop_standing(id);
+    assert_eq!(st(&c, id).state, StandingState::Ended);
+    assert_eq!(available(&usdc(&c)), 10_100);
+    assert!(has_event("standing_ended"));
+}
+
+#[test]
+fn end_date_caps_payments_and_releases_notice() {
+    let mut c = setup();
+    let id = add_standing(&mut c, 2, Some(FIRST_DUE + 2 * PERIOD));
+    fund_standing(&mut c, id, 1_000);
+    let now = FIRST_DUE + 10 * PERIOD;
+    call("keeper.near", 0, now);
+    assert!(c.pay_due(id).is_some());
+    assert_eq!(usdc(&c).reserved, U128(200)); // only the two before the end
+    sent(&mut c, id, now, ok());
+    let s = st(&c, id);
+    assert_eq!(s.state, StandingState::Ended);
+    let b = usdc(&c);
+    assert_eq!(b.committed_notice, U128(0));
+    assert_eq!(b.standing_buffer, U128(0));
+    assert_eq!(available(&b), 10_800);
+    check_i1(&c);
+}
+
+#[test]
+fn due_periods_respects_end() {
+    let mut c = setup();
+    let id = add_standing(&mut c, 0, Some(FIRST_DUE + PERIOD + 1));
+    let s = st(&c, id);
+    assert_eq!(due_periods(&s, FIRST_DUE - 1), 0);
+    assert_eq!(due_periods(&s, FIRST_DUE), 1);
+    assert_eq!(due_periods(&s, FIRST_DUE + 100 * PERIOD), 2);
+}
+
+// ────────────────────────────── records ────────────────────────────
+
+#[test]
+fn seed_records_counts_each_proposal_once() {
+    let mut c = setup();
+    call(DAO, 0, T0);
+    c.seed_records(vec![
+        SeedEntry {
+            account: acc(CAROL),
+            proposal_ids: vec![U64(3), U64(9), U64(9)],
+        },
+        SeedEntry {
+            account: acc(BOB),
+            proposal_ids: vec![U64(4)],
+        },
+    ]);
+    assert_eq!(c.get_record(acc(CAROL)).unwrap().paid_jobs, 2);
+    assert_eq!(c.get_record(acc(BOB)).unwrap().paid_jobs, 1);
+    c.seed_records(vec![SeedEntry {
+        account: acc(CAROL),
+        proposal_ids: vec![U64(3)],
+    }]);
+    let rec = c.get_record(acc(CAROL)).unwrap();
+    assert_eq!(rec.paid_jobs, 2);
+    assert_eq!(
+        rec.sources,
+        vec![
+            SourceRef::DaoProposal { id: U64(3) },
+            SourceRef::DaoProposal { id: U64(9) }
+        ]
+    );
+    assert!(has_event("records_seeded"));
+}
+
+#[test]
+#[should_panic(expected = "ONLY_DAO")]
+fn only_dao_seeds_records() {
+    let mut c = setup();
+    call(CAROL, 0, T0);
+    c.seed_records(vec![SeedEntry {
+        account: acc(CAROL),
+        proposal_ids: vec![U64(1)],
+    }]);
+}
+
+fn escalated(c: &mut Contract) -> PayoutId {
+    let id = objected(c);
+    callback(T0 + HOUR, policy_json(ONE_NEAR));
+    let _ = c.on_policy_for_escalation(id, Ok(policy_from(ONE_NEAR)));
+    callback(T0 + HOUR, PromiseResult::Successful(b"7".to_vec()));
+    c.on_proposal_added(id, U128(ONE_NEAR), Ok(7));
+    id
+}
+
+fn proposal(status: ProposalStatus) -> Proposal {
+    Proposal { status }
+}
+
+#[test]
+fn approved_escalation_counts_in_record() {
+    let mut c = setup();
+    let id = escalated(&mut c);
+    call("keeper.near", 0, T0 + 2 * HOUR);
+    let _ = c.settle_escalation(id);
+    callback(T0 + 2 * HOUR, ok());
+    c.on_escalation_proposal(id, Ok(proposal(ProposalStatus::Approved)));
+    assert_eq!(
+        status(&c, id),
+        PayoutStatus::Settled {
+            proposal_id: U64(7),
+            approved: true
+        }
+    );
+    let rec = c.get_record(acc(CAROL)).unwrap();
+    assert_eq!(rec.paid_jobs, 1);
+    assert_eq!(rec.sources, vec![SourceRef::DaoProposal { id: U64(7) }]);
+    assert!(has_event("escalation_settled"));
+}
+
+#[test]
+fn rejected_escalation_settles_without_points() {
+    let mut c = setup();
+    let id = escalated(&mut c);
+    callback(T0 + 2 * HOUR, ok());
+    c.on_escalation_proposal(id, Ok(proposal(ProposalStatus::Rejected)));
+    assert_eq!(
+        status(&c, id),
+        PayoutStatus::Settled {
+            proposal_id: U64(7),
+            approved: false
+        }
+    );
+    assert_eq!(c.get_record(acc(CAROL)).unwrap().paid_jobs, 0);
+}
+
+#[test]
+#[should_panic(expected = "PROPOSAL_IN_PROGRESS")]
+fn open_proposal_cannot_settle() {
+    let mut c = setup();
+    let id = escalated(&mut c);
+    callback(T0 + 2 * HOUR, ok());
+    c.on_escalation_proposal(id, Ok(proposal(ProposalStatus::InProgress)));
+}
+
+#[test]
+#[should_panic(expected = "NOT_ESCALATED")]
+fn only_escalated_payouts_settle() {
+    let mut c = setup();
+    let id = file(&mut c, 50, T0);
+    call("keeper.near", 0, T0);
+    let _ = c.settle_escalation(id);
+}
+
+// ─────────────────────────── council sync ──────────────────────────
+
+fn role(name: &str, kind: RoleKind, perms: &[&str]) -> sputnik::RolePermission {
+    sputnik::RolePermission {
+        name: name.into(),
+        kind,
+        permissions: perms.iter().map(|p| p.to_string()).collect(),
+    }
+}
+
+#[test]
+fn sync_council_uses_transfer_approvers_and_caches_roles() {
+    let mut c = setup();
+    let policy = Policy {
+        roles: vec![
+            role("all", RoleKind::Everyone, &["*:AddProposal"]),
+            role(
+                "council",
+                RoleKind::Group(vec![acc("dan.near"), acc("eve.near")]),
+                &["transfer:VoteApprove", "transfer:VoteReject"],
+            ),
+            role(
+                "contributors",
+                RoleKind::Group(vec![acc(FILER)]),
+                &["*:AddProposal"],
+            ),
+            role("holders", RoleKind::Member(U128(1)), &["*:*"]),
+        ],
+        proposal_bond: U128(ONE_NEAR),
+    };
+    call("keeper.near", 0, T0);
+    let _ = c.sync_council();
+    callback(T0, ok());
+    c.on_council_policy(Ok(policy));
+    assert_eq!(
+        c.get_config().council,
+        vec![acc("dan.near"), acc("eve.near")]
+    );
+    assert!(has_event("council_synced"));
+
+    // Role-based filers now work.
+    let mut cfg = lane_cfg();
+    cfg.filers = Filers::DaoMembersOfRole("contributors".into());
+    call(DAO, 0, T0);
+    c.configure_lane(cfg);
+    file(&mut c, 10, T0);
+}
+
+#[test]
+#[should_panic(expected = "NO_GROUP_APPROVERS")]
+fn sync_council_refuses_to_empty_the_council() {
+    let mut c = setup();
+    callback(T0, ok());
+    c.on_council_policy(Ok(Policy {
+        roles: vec![role("all", RoleKind::Everyone, &["*:*"])],
+        proposal_bond: U128(ONE_NEAR),
+    }));
+}
+
+// ─────────────────────── Sputnik JSON shapes ───────────────────────
+
+#[test]
+fn reads_real_sputnik_policy_and_proposal_json() {
+    let policy: Policy = near_sdk::serde_json::from_str(
+        r#"{"roles":[{"name":"all","kind":"Everyone","permissions":["*:AddProposal"],"vote_policy":{}},
+            {"name":"council","kind":{"Group":["a.near","b.near"]},"permissions":["*:*"],"vote_policy":{}},
+            {"name":"token","kind":{"Member":"1"},"permissions":["*:VoteApprove"],"vote_policy":{}}],
+            "default_vote_policy":{"weight_kind":"RoleWeight","quorum":"0","threshold":[1,2]},
+            "proposal_bond":"1000000000000000000000000","proposal_period":"604800000000000",
+            "bounty_bond":"1000000000000000000000000","bounty_forgiveness_period":"86400000000000"}"#,
+    )
+    .unwrap();
+    assert_eq!(policy.proposal_bond, U128(ONE_NEAR));
+    assert_eq!(
+        policy.roles[1].kind,
+        RoleKind::Group(vec![acc("a.near"), acc("b.near")])
+    );
+
+    let proposal: Proposal = near_sdk::serde_json::from_str(
+        r#"{"id":7,"proposer":"x.near","description":"d",
+            "kind":{"Transfer":{"token_id":"","receiver_id":"c.near","amount":"1","msg":null}},
+            "status":"Approved","vote_counts":{},"votes":{},"submission_time":"1"}"#,
+    )
+    .unwrap();
+    assert_eq!(proposal.status, ProposalStatus::Approved);
+}
+
+#[test]
+fn writes_sputnik_add_proposal_args() {
+    let p = ProposalInput {
+        description: "d".into(),
+        kind: ProposalKind::Transfer {
+            token_id: SPUTNIK_NEAR_TOKEN.into(),
+            receiver_id: acc(CAROL),
+            amount: U128(50),
+            msg: None,
+        },
+    };
+    let v = json!({ "proposal": p });
+    assert_eq!(
+        v,
+        json!({"proposal": {"description": "d", "kind": {"Transfer": {
+            "token_id": "", "receiver_id": "carol.near", "amount": "50", "msg": null}}}})
+    );
+}

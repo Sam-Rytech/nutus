@@ -28,7 +28,9 @@ use nutus_common::{
 };
 
 use events::NutusEvent;
-use sputnik::{Policy, Proposal, ProposalInput, ProposalKind, SPUTNIK_NEAR_TOKEN};
+use sputnik::{
+    Policy, Proposal, ProposalInput, ProposalKind, ProposalStatus, RoleKind, SPUTNIK_NEAR_TOKEN,
+};
 use types::*;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -40,6 +42,8 @@ pub const MAX_NAME_LEN: usize = 128;
 pub const MAX_LINK_LEN: usize = 512;
 pub const MAX_MEMO_LEN: usize = 256;
 pub const MAX_REASON_LEN: usize = 512;
+/// Most record points one `seed_records` call may add (gas).
+pub const MAX_SEED_POINTS: usize = 200;
 
 const GAS_FT_TRANSFER: Gas = Gas::from_tgas(10);
 const GAS_STORAGE_DEPOSIT: Gas = Gas::from_tgas(10);
@@ -49,6 +53,9 @@ const GAS_GET_POLICY: Gas = Gas::from_tgas(10);
 const GAS_ADD_PROPOSAL: Gas = Gas::from_tgas(30);
 const GAS_ON_PROPOSAL_ADDED: Gas = Gas::from_tgas(20);
 const GAS_ON_POLICY: Gas = Gas::from_tgas(70);
+const GAS_ON_COUNCIL_POLICY: Gas = Gas::from_tgas(30);
+const GAS_GET_PROPOSAL: Gas = Gas::from_tgas(10);
+const GAS_ON_SETTLE: Gas = Gas::from_tgas(20);
 
 #[near(contract_state)]
 #[derive(PanicOnDefault)]
@@ -59,6 +66,8 @@ pub struct Contract {
     council: IterableSet<AccountId>,
     /// Role name → members, cached from the DAO policy by `sync_council`.
     role_members: LookupMap<String, Vec<AccountId>>,
+    /// Role names currently in `role_members`, so a re-sync can drop old ones.
+    role_names: Vec<String>,
     tokens: IterableMap<TokenId, TokenBook>,
     lanes: IterableMap<LaneId, Lane>,
     /// Indexed by payout id.
@@ -87,6 +96,7 @@ impl Contract {
             paused: false,
             council: IterableSet::new(StorageKey::Council),
             role_members: LookupMap::new(StorageKey::RoleMembers),
+            role_names: Vec::new(),
             tokens: IterableMap::new(StorageKey::Tokens),
             lanes: IterableMap::new(StorageKey::Lanes),
             payouts: Vector::new(StorageKey::Payouts),
@@ -149,24 +159,149 @@ impl Contract {
         .emit();
     }
 
+    /// Imports past payments the DAO already made (drafted by the report from
+    /// its proposal history). One point per proposal id; ids already counted
+    /// for that account are skipped. The DAO votes on this, so it's authorised
+    /// and every point traces to a real proposal (I5).
     pub fn seed_records(&mut self, entries: Vec<SeedEntry>) {
         self.assert_dao();
-        let _ = entries;
-        todo!("Phase 3")
+        let total: usize = entries.iter().map(|e| e.proposal_ids.len()).sum();
+        require!(total <= MAX_SEED_POINTS, "TOO_MANY_POINTS");
+        let (mut accounts, mut points) = (0u32, 0u32);
+        for entry in entries {
+            let mut rec = self
+                .records
+                .get(&entry.account)
+                .cloned()
+                .unwrap_or_default();
+            let mut added = 0u32;
+            for id in entry.proposal_ids {
+                let source = SourceRef::DaoProposal { id };
+                if !rec.sources.contains(&source) {
+                    rec.sources.push(source);
+                    added += 1;
+                }
+            }
+            if added > 0 {
+                rec.paid_jobs += added;
+                self.records.insert(entry.account, rec);
+                accounts += 1;
+                points += added;
+            }
+        }
+        NutusEvent::RecordsSeeded { accounts, points }.emit();
     }
 
-    /// Locks `amount × notice_periods` into committed notice. Returns the new id.
+    /// Recurring pay with guaranteed notice. Locks `amount × notice_periods`
+    /// from `available` into committed notice, which nobody can withdraw (I2).
+    /// Regular payments come from this payment's buffer: top it up with
+    /// `ft_transfer_call(…, "fund_standing:<id>")` or `fund_standing_near`.
     pub fn add_standing(&mut self, standing: StandingInput) -> StandingId {
         self.assert_dao();
-        let _ = standing;
-        todo!("Phase 3")
+        let s = standing;
+        require!(s.amount.0 > 0, "ZERO_AMOUNT");
+        require!(s.period_ns.0 > 0, "BAD_DURATION");
+        require!(
+            s.token == NEAR_TOKEN_ID || s.token.parse::<AccountId>().is_ok(),
+            "BAD_TOKEN"
+        );
+        require!(s.recipient != env::current_account_id(), "BAD_RECIPIENT");
+        require!(
+            s.ends_at_ns.is_none_or(|e| e.0 > s.first_due_ns.0),
+            "BAD_END"
+        );
+        require!(
+            s.memo.as_ref().is_none_or(|m| m.len() <= MAX_MEMO_LEN),
+            "MEMO_TOO_LONG"
+        );
+        let notice = s
+            .amount
+            .0
+            .checked_mul(u128::from(s.notice_periods))
+            .unwrap_or_else(|| env::panic_str("OVERFLOW"));
+        let mut book = self.book(&s.token);
+        require!(available(&book) >= notice, "INSUFFICIENT_BUDGET");
+        book.committed_notice = U128(book.committed_notice.0 + notice);
+        self.put_book(&s.token, book);
+
+        let id = U64(u64::from(self.standing.len()));
+        NutusEvent::StandingAdded {
+            id,
+            recipient: s.recipient.clone(),
+            token: s.token.clone(),
+            amount: s.amount,
+            period_ns: s.period_ns,
+            notice_periods: s.notice_periods,
+            notice_locked: U128(notice),
+        }
+        .emit();
+        self.standing.push(Standing {
+            id,
+            recipient: s.recipient,
+            token: s.token,
+            amount: s.amount,
+            period_ns: s.period_ns,
+            next_due_ns: s.first_due_ns,
+            ends_at_ns: s.ends_at_ns,
+            notice_periods: s.notice_periods,
+            memo: s.memo,
+            buffer: U128(0),
+            notice_locked: U128(notice),
+            sending: false,
+            state: StandingState::Active,
+        });
+        id
     }
 
-    /// Starts the notice period; remaining payments come from committed notice.
+    /// Starts the notice period: the next `notice_periods` payments come from
+    /// committed notice and can't be stopped. Whatever is left in the regular
+    /// buffer goes back to `available`.
     pub fn stop_standing(&mut self, standing_id: StandingId) {
         self.assert_dao();
-        let _ = standing_id;
-        todo!("Phase 3")
+        let mut s = self.standing_entry(standing_id);
+        require!(s.state == StandingState::Active, "NOT_ACTIVE");
+        require!(!s.sending, "ALREADY_SENDING");
+        let mut book = self.book(&s.token);
+        book.standing_buffer = U128(book.standing_buffer.0 - s.buffer.0);
+        s.buffer = U128(0);
+        self.put_book(&s.token, book);
+        NutusEvent::StandingStopped {
+            id: standing_id,
+            notice_periods: s.notice_periods,
+        }
+        .emit();
+        if s.notice_periods == 0 {
+            self.end_standing(&mut s);
+        } else {
+            s.state = StandingState::Noticed {
+                notice_started_ns: U64(env::block_timestamp()),
+                remaining_periods: s.notice_periods,
+            };
+        }
+        self.put_standing(s);
+    }
+
+    /// NEAR top-up of a standing payment's buffer (FT tokens use
+    /// `ft_transfer_call` with `"fund_standing:<id>"`).
+    #[payable]
+    pub fn fund_standing_near(&mut self, standing_id: StandingId) {
+        self.assert_dao();
+        let amount = env::attached_deposit().as_yoctonear();
+        require!(amount > 0, "ZERO_AMOUNT");
+        let mut s = self.standing_entry(standing_id);
+        require!(s.token == NEAR_TOKEN_ID, "NOT_A_NEAR_STANDING");
+        require!(s.state != StandingState::Ended, "ENDED");
+        let mut book = self.book(&s.token);
+        book.balance = U128(book.balance.0 + amount);
+        book.standing_buffer = U128(book.standing_buffer.0 + amount);
+        self.put_book(&s.token, book);
+        s.buffer = U128(s.buffer.0 + amount);
+        self.put_standing(s);
+        NutusEvent::StandingFunded {
+            id: standing_id,
+            amount: U128(amount),
+        }
+        .emit();
     }
 
     /// While paused: no new filings, releases or approvals. Objections,
@@ -526,21 +661,135 @@ impl Contract {
         self.start_escalation(payout_id)
     }
 
-    /// Pays every due period up to now. Returns `None` when nothing is due.
+    /// Pays every period due up to now (and before `ends_at`), then ends the
+    /// payment once it's finished. Returns `None` when nothing is sent.
+    ///
+    /// Active: paid from the buffer, as many periods as it covers; the rest
+    /// stays due and `standing_short` is emitted. Noticed: paid from committed
+    /// notice. Pausing stops regular payments but never notice payments —
+    /// notice is a promise the code keeps.
     pub fn pay_due(&mut self, standing_id: StandingId) -> Option<Promise> {
-        let _ = standing_id;
-        todo!("Phase 3")
+        let now = env::block_timestamp();
+        let mut s = self.standing_entry(standing_id);
+        require!(!s.sending, "ALREADY_SENDING");
+        let from_notice = match s.state {
+            StandingState::Ended => return None,
+            StandingState::Active => {
+                self.assert_not_paused();
+                false
+            }
+            StandingState::Noticed { .. } => true,
+        };
+        let due = due_periods(&s, now);
+        if due == 0 {
+            if standing_finished(&s) {
+                self.end_standing(&mut s);
+                self.put_standing(s);
+            }
+            return None;
+        }
+        let amount = s.amount.0;
+        let periods = match s.state {
+            StandingState::Noticed {
+                notice_started_ns,
+                remaining_periods,
+            } => {
+                let k = due.min(remaining_periods);
+                s.state = StandingState::Noticed {
+                    notice_started_ns,
+                    remaining_periods: remaining_periods - k,
+                };
+                k
+            }
+            _ => {
+                let affordable = u32::try_from(s.buffer.0 / amount).unwrap_or(u32::MAX);
+                let k = due.min(affordable);
+                if k < due {
+                    NutusEvent::StandingShort {
+                        id: standing_id,
+                        due: U128(amount * u128::from(due - k)),
+                        buffer: U128(s.buffer.0 - amount * u128::from(k)),
+                    }
+                    .emit();
+                }
+                if k == 0 {
+                    return None;
+                }
+                k
+            }
+        };
+        let total = amount * u128::from(periods);
+        let mut book = self.book(&s.token);
+        if from_notice {
+            s.notice_locked = U128(s.notice_locked.0 - total);
+            book.committed_notice = U128(book.committed_notice.0 - total);
+        } else {
+            s.buffer = U128(s.buffer.0 - total);
+            book.standing_buffer = U128(book.standing_buffer.0 - total);
+        }
+        // In flight: held as reserved until the callback settles it.
+        book.reserved = U128(book.reserved.0 + total);
+        self.put_book(&s.token, book);
+        let prev_next_due = s.next_due_ns;
+        s.next_due_ns = U64(s.next_due_ns.0 + u64::from(periods) * s.period_ns.0);
+        s.sending = true;
+        let send = transfer(&s.token, &s.recipient, total, true);
+        self.put_standing(s);
+        Some(
+            send.then(
+                Self::ext(env::current_account_id())
+                    .with_static_gas(GAS_ON_SENT)
+                    .on_standing_sent(
+                        standing_id,
+                        periods,
+                        U128(total),
+                        from_notice,
+                        prev_next_due,
+                    ),
+            ),
+        )
     }
 
-    /// Reads the DAO policy; council = members of roles with `transfer:VoteApprove`.
+    /// Reads the DAO policy. Council (default objectors / approvers) = members
+    /// of Group roles that can approve transfers (`transfer:VoteApprove` or a
+    /// wildcard). Also caches every Group role's members for
+    /// `Filers::DaoMembersOfRole`. Token-weighted roles can't be listed and
+    /// are skipped. Attach ≥ 60 TGas.
     pub fn sync_council(&mut self) -> Promise {
-        todo!("Phase 3")
+        Promise::new(self.dao.clone())
+            .function_call(
+                "get_policy",
+                b"{}".to_vec(),
+                NearToken::from_yoctonear(0),
+                GAS_GET_POLICY,
+            )
+            .then(
+                Self::ext(env::current_account_id())
+                    .with_static_gas(GAS_ON_COUNCIL_POLICY)
+                    .on_council_policy(),
+            )
     }
 
-    /// Reads the escalated proposal; records a point if Approved.
+    /// Reads the escalated proposal from the DAO. Approved → one record point
+    /// for the recipient (I5: it references the DAO's own proposal). Any final
+    /// status closes the payout as `Settled`. Attach ≥ 60 TGas.
     pub fn settle_escalation(&mut self, payout_id: PayoutId) -> Promise {
-        let _ = payout_id;
-        todo!("Phase 3")
+        let p = self.payout(payout_id);
+        let PayoutStatus::Escalated { proposal_id } = p.status else {
+            env::panic_str("NOT_ESCALATED")
+        };
+        Promise::new(self.dao.clone())
+            .function_call(
+                "get_proposal",
+                json!({ "id": proposal_id.0 }).to_string().into_bytes(),
+                NearToken::from_yoctonear(0),
+                GAS_GET_PROPOSAL,
+            )
+            .then(
+                Self::ext(env::current_account_id())
+                    .with_static_gas(GAS_ON_SETTLE)
+                    .on_escalation_proposal(payout_id),
+            )
     }
 
     // ────────────────────────── callbacks ──────────────────────────
@@ -613,9 +862,50 @@ impl Contract {
         periods: u32,
         amount: U128,
         from_notice: bool,
+        prev_next_due: U64,
     ) {
-        let _ = (standing_id, periods, amount, from_notice);
-        todo!("Phase 3")
+        let mut s = self.standing_entry(standing_id);
+        require!(s.sending, "NOT_SENDING");
+        s.sending = false;
+        let mut book = self.book(&s.token);
+        book.reserved = U128(book.reserved.0 - amount.0);
+        if promise_succeeded() {
+            book.balance = U128(book.balance.0 - amount.0);
+            self.put_book(&s.token, book);
+            NutusEvent::StandingPaid {
+                id: standing_id,
+                periods,
+                amount,
+                from_notice,
+            }
+            .emit();
+            if standing_finished(&s) {
+                self.end_standing(&mut s);
+            }
+        } else {
+            // Put the money back where it came from; the periods are due again.
+            if from_notice {
+                s.notice_locked = U128(s.notice_locked.0 + amount.0);
+                book.committed_notice = U128(book.committed_notice.0 + amount.0);
+                if let StandingState::Noticed {
+                    remaining_periods, ..
+                } = &mut s.state
+                {
+                    *remaining_periods += periods;
+                }
+            } else {
+                s.buffer = U128(s.buffer.0 + amount.0);
+                book.standing_buffer = U128(book.standing_buffer.0 + amount.0);
+            }
+            self.put_book(&s.token, book);
+            s.next_due_ns = prev_next_due;
+            NutusEvent::StandingFailed {
+                id: standing_id,
+                reason: "transfer failed".into(),
+            }
+            .emit();
+        }
+        self.put_standing(s);
     }
 
     #[private]
@@ -713,8 +1003,34 @@ impl Contract {
 
     #[private]
     pub fn on_council_policy(&mut self, #[callback_result] policy: Result<Policy, PromiseError>) {
-        let _ = policy;
-        todo!("Phase 3")
+        let Ok(policy) = policy else {
+            env::panic_str("COULD_NOT_READ_POLICY")
+        };
+        for name in std::mem::take(&mut self.role_names) {
+            self.role_members.remove(&name);
+        }
+        let mut council: Vec<AccountId> = Vec::new();
+        for role in policy.roles {
+            let RoleKind::Group(members) = role.kind else {
+                continue;
+            };
+            if can_approve_transfers(&role.permissions) {
+                for m in &members {
+                    if !council.contains(m) {
+                        council.push(m.clone());
+                    }
+                }
+            }
+            self.role_names.push(role.name.clone());
+            self.role_members.insert(role.name, members);
+        }
+        // An empty council would make objections impossible; keep the old one.
+        require!(!council.is_empty(), "NO_GROUP_APPROVERS");
+        self.council.clear();
+        for m in &council {
+            self.council.insert(m.clone());
+        }
+        NutusEvent::CouncilSynced { members: council }.emit();
     }
 
     #[private]
@@ -723,8 +1039,39 @@ impl Contract {
         payout_id: PayoutId,
         #[callback_result] proposal: Result<Proposal, PromiseError>,
     ) {
-        let _ = (payout_id, proposal);
-        todo!("Phase 3")
+        let mut p = self.payout(payout_id);
+        let PayoutStatus::Escalated { proposal_id } = p.status else {
+            env::panic_str("NOT_ESCALATED")
+        };
+        let Ok(proposal) = proposal else {
+            env::panic_str("COULD_NOT_READ_PROPOSAL")
+        };
+        let approved = match proposal.status {
+            ProposalStatus::InProgress => env::panic_str("PROPOSAL_IN_PROGRESS"),
+            ProposalStatus::Approved => true,
+            // Failed = approved but the transfer didn't execute: not paid.
+            _ => false,
+        };
+        if approved {
+            let mut rec = self.records.get(&p.recipient).cloned().unwrap_or_default();
+            let source = SourceRef::DaoProposal { id: proposal_id };
+            if !rec.sources.contains(&source) {
+                rec.sources.push(source);
+                rec.paid_jobs += 1;
+                self.records.insert(p.recipient.clone(), rec);
+            }
+        }
+        p.status = PayoutStatus::Settled {
+            proposal_id,
+            approved,
+        };
+        self.put_payout(p);
+        NutusEvent::EscalationSettled {
+            id: payout_id,
+            proposal_id,
+            approved,
+        }
+        .emit();
     }
 
     // ──────────────────────────── views ────────────────────────────
@@ -879,6 +1226,32 @@ impl Contract {
     fn put_payout(&mut self, p: Payout) {
         let idx = p.id.0 as u32;
         self.payouts.set(idx, p);
+    }
+
+    fn standing_entry(&self, id: StandingId) -> Standing {
+        u32::try_from(id.0)
+            .ok()
+            .and_then(|i| self.standing.get(i))
+            .cloned()
+            .unwrap_or_else(|| env::panic_str("NO_STANDING"))
+    }
+
+    fn put_standing(&mut self, s: Standing) {
+        let idx = s.id.0 as u32;
+        self.standing.set(idx, s);
+    }
+
+    /// Ended: unused notice and buffer go back to `available`.
+    fn end_standing(&mut self, s: &mut Standing) {
+        let mut book = self.book(&s.token);
+        book.committed_notice = U128(book.committed_notice.0 - s.notice_locked.0);
+        book.standing_buffer = U128(book.standing_buffer.0 - s.buffer.0);
+        self.put_book(&s.token, book);
+        let released = U128(s.notice_locked.0 + s.buffer.0);
+        s.notice_locked = U128(0);
+        s.buffer = U128(0);
+        s.state = StandingState::Ended;
+        NutusEvent::StandingEnded { id: s.id, released }.emit();
     }
 
     /// NEAR the instance holds beyond storage, the NEAR payout budget and
@@ -1059,6 +1432,47 @@ pub fn roll_period(lane: &mut Lane, now: u64) {
         lane.period_start_ns = U64(start + periods * len);
         lane.spent_this_period = U128(0);
     }
+}
+
+/// Due dates in `[next_due, now]` that fall before `ends_at`.
+pub fn due_periods(s: &Standing, now: u64) -> u32 {
+    let (next, len) = (s.next_due_ns.0, s.period_ns.0);
+    if now < next {
+        return 0;
+    }
+    let mut n = (now - next) / len + 1;
+    if let Some(end) = s.ends_at_ns {
+        let before_end = if next >= end.0 {
+            0
+        } else {
+            (end.0 - next - 1) / len + 1
+        };
+        n = n.min(before_end);
+    }
+    u32::try_from(n).unwrap_or(u32::MAX)
+}
+
+/// Nothing more will ever be paid: past `ends_at`, or notice used up.
+fn standing_finished(s: &Standing) -> bool {
+    s.ends_at_ns.is_some_and(|e| s.next_due_ns.0 >= e.0)
+        || matches!(
+            s.state,
+            StandingState::Noticed {
+                remaining_periods: 0,
+                ..
+            }
+        )
+}
+
+/// Sputnik permission strings are `<proposal kind>:<action>`; `Transfer`
+/// proposals are kind `transfer`.
+fn can_approve_transfers(permissions: &[String]) -> bool {
+    permissions.iter().any(|p| {
+        matches!(
+            p.as_str(),
+            "*:*" | "transfer:*" | "*:VoteApprove" | "transfer:VoteApprove"
+        )
+    })
 }
 
 fn require_waiting(p: &Payout) {

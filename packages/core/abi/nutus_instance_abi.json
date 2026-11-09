@@ -8,7 +8,7 @@
     "functions": [
       {
         "name": "add_standing",
-        "doc": " Locks `amount × notice_periods` into committed notice. Returns the new id.",
+        "doc": " Recurring pay with guaranteed notice. Locks `amount × notice_periods`\n from `available` into committed notice, which nobody can withdraw (I2).\n Regular payments come from this payment's buffer: top it up with\n `ft_transfer_call(…, \"fund_standing:<id>\")` or `fund_standing_near`.",
         "kind": "call",
         "params": {
           "serialization_type": "json",
@@ -211,6 +211,25 @@
         "modifiers": [
           "payable"
         ]
+      },
+      {
+        "name": "fund_standing_near",
+        "doc": " NEAR top-up of a standing payment's buffer (FT tokens use\n `ft_transfer_call` with `\"fund_standing:<id>\"`).",
+        "kind": "call",
+        "modifiers": [
+          "payable"
+        ],
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "standing_id",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        }
       },
       {
         "name": "get_config",
@@ -665,6 +684,12 @@
               "type_schema": {
                 "type": "boolean"
               }
+            },
+            {
+              "name": "prev_next_due",
+              "type_schema": {
+                "type": "string"
+              }
             }
           ]
         }
@@ -707,7 +732,7 @@
       },
       {
         "name": "pay_due",
-        "doc": " Pays every due period up to now. Returns `None` when nothing is due.",
+        "doc": " Pays every period due up to now (and before `ends_at`), then ends the\n payment once it's finished. Returns `None` when nothing is sent.\n\n Active: paid from the buffer, as many periods as it covers; the rest\n stays due and `standing_short` is emitted. Noticed: paid from committed\n notice. Pausing stops regular payments but never notice payments —\n notice is a promise the code keeps.",
         "kind": "call",
         "params": {
           "serialization_type": "json",
@@ -774,6 +799,7 @@
       },
       {
         "name": "seed_records",
+        "doc": " Imports past payments the DAO already made (drafted by the report from\n its proposal history). One point per proposal id; ids already counted\n for that account are skipped. The DAO votes on this, so it's authorised\n and every point traces to a real proposal (I5).",
         "kind": "call",
         "params": {
           "serialization_type": "json",
@@ -848,7 +874,7 @@
       },
       {
         "name": "settle_escalation",
-        "doc": " Reads the escalated proposal; records a point if Approved.",
+        "doc": " Reads the escalated proposal from the DAO. Approved → one record point\n for the recipient (I5: it references the DAO's own proposal). Any final\n status closes the payout as `Settled`. Attach ≥ 60 TGas.",
         "kind": "call",
         "params": {
           "serialization_type": "json",
@@ -870,7 +896,7 @@
       },
       {
         "name": "stop_standing",
-        "doc": " Starts the notice period; remaining payments come from committed notice.",
+        "doc": " Starts the notice period: the next `notice_periods` payments come from\n committed notice and can't be stopped. Whatever is left in the regular\n buffer goes back to `available`.",
         "kind": "call",
         "params": {
           "serialization_type": "json",
@@ -886,7 +912,7 @@
       },
       {
         "name": "sync_council",
-        "doc": " Reads the DAO policy; council = members of roles with `transfer:VoteApprove`.",
+        "doc": " Reads the DAO policy. Council (default objectors / approvers) = members\n of Group roles that can approve transfers (`transfer:VoteApprove` or a\n wildcard). Also caches every Group role's members for\n `Filers::DaoMembersOfRole`. Token-weighted roles can't be listed and\n are skipped. Attach ≥ 60 TGas.",
         "kind": "call",
         "result": {
           "serialization_type": "json",
@@ -1505,16 +1531,12 @@
           "type": "string"
         },
         "Proposal": {
-          "description": "Subset of `get_proposal(id)`.",
+          "description": "Subset of `get_proposal(id)`. (Sputnik returns `id` as a bare JSON number, not a `U64` string; it isn't needed, so it isn't read.)",
           "type": "object",
           "required": [
-            "id",
             "status"
           ],
           "properties": {
-            "id": {
-              "type": "string"
-            },
             "status": {
               "$ref": "#/definitions/ProposalStatus"
             }

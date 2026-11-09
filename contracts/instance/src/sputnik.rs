@@ -2,7 +2,7 @@
 //! Field names and enum tagging match `sputnikdao2/src` (verified 2026-11-08).
 //! Unknown fields are ignored on deserialize, so only what Nutus needs is listed.
 
-use near_sdk::json_types::{U128, U64};
+use near_sdk::json_types::U128;
 use near_sdk::{near, AccountId};
 
 /// Sputnik uses `""` as the token id for native NEAR in `Transfer` proposals.
@@ -45,11 +45,11 @@ pub enum ProposalStatus {
     Failed,
 }
 
-/// Subset of `get_proposal(id)`.
+/// Subset of `get_proposal(id)`. (Sputnik returns `id` as a bare JSON number,
+/// not a `U64` string; it isn't needed, so it isn't read.)
 #[near(serializers = [json])]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Proposal {
-    pub id: U64,
     pub status: ProposalStatus,
 }
 

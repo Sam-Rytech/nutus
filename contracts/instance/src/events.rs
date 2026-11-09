@@ -128,6 +128,10 @@ pub enum NutusEvent {
         buffer: U128,
     },
 
+    /// A standing transfer failed; the money went back and the periods are due again.
+    #[event_version("1.0.0")]
+    StandingFailed { id: StandingId, reason: String },
+
     #[event_version("1.0.0")]
     StandingStopped { id: StandingId, notice_periods: u32 },
 

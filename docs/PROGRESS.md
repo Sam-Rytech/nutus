@@ -17,7 +17,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 |:--|:--|:--|
 | Planning and naming | AB | [x] done |
 | Interfaces frozen | A → B | [~] ABI committed; B to generate types.ts |
-| Instance contract | A | [~] Phase 2 done (funding, lanes, filing, release, approve, object → escalation, cancel, withdraw); Phase 3 next |
+| Instance contract | A | [x] every §4.5 method implemented; 80 unit tests. Integration tests (Phase 5) next |
 | Factory and setup | A | [~] interface, views |
 | Contract tests | A | [ ] |
 | Keeper | A | [ ] |
@@ -72,9 +72,9 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 **A**
 - [x] Escalation: `get_policy` → bond → `add_proposal(Transfer)` → `Escalated`; `needs_manual_filing` fallback (done early, with Phase 2)
 - [x] `escalate` (Medium timeout, and retry of `needs_manual_filing`)
-- [ ] Standing: `add_standing`, `fund_standing:<id>`, `pay_due`, `stop_standing`, notice from committed money, `standing_short`
-- [ ] Records: `set_record_steps`, `seed_records`, `settle_escalation`, objection cooldown
-- [ ] `sync_council` from DAO policy
+- [x] Standing: `add_standing`, `fund_standing:<id>` (+ `fund_standing_near`), `pay_due`, `stop_standing`, notice from committed money, `standing_short`, `standing_failed`, end date
+- [x] Records: `set_record_steps`, `seed_records` (one point per proposal id), `settle_escalation`, objection cooldown
+- [x] `sync_council` from DAO policy (also caches Group role members for role-based filers)
 
 **B**
 - [ ] Fix-this builders: lane setup (budget from trailing spend), standing from repeat series, `seed_records` from history, seat changes, policy role grant when restricted
@@ -159,6 +159,12 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | 2026-11-09 | Filing deposit pays the payout's own storage; the rest is refunded on Paid / Failed / Escalated / Cancelled (minus 0.00125 NEAR token registration on a Paid FT payout) | Storage stays staked after a payout closes |
 | 2026-11-09 | Release sends `storage_deposit` + `ft_transfer` as one atomic batch | A failed transfer reverts the registration too, so the full deposit can be refunded |
 | 2026-11-09 | A Small payout above the recipient's record step becomes Medium, not a panic | Spec §3.7: Small = ≤ min(small_max, record step) |
+| 2026-11-09 | `pause` stops regular standing payments but **not** notice payments | Notice is the promise the code keeps; a DAO pause can't break it |
+| 2026-11-09 | `stop_standing` returns the unused regular buffer to `available`; `Ended` releases any unused notice and buffer | Only the notice is guaranteed; the rest is the DAO's money again |
+| 2026-11-09 | Standing money in flight moves to `reserved` until the callback | I1 and `available` stay exact during async transfers; failures put it back where it came from |
+| 2026-11-09 | `sync_council` = Group roles with `transfer:VoteApprove` (or a wildcard); token-weighted roles skipped; refuses to leave the council empty | Only Group roles can be listed; an empty council would block all objections |
+| 2026-11-09 | `settle_escalation`: Approved → record point; any other final status → `Settled{approved:false}`; `InProgress` refused | Sputnik `Failed` means approved but not executed, so not paid |
+| 2026-11-09 | Fixed: Sputnik `get_proposal` returns `id` as a JSON number; `Proposal` no longer reads it | Would have broken `settle_escalation` on chain; now covered by a JSON-shape test |
 
 ## Testnet log
 | Date | Action | Tx / account | By |

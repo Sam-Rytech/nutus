@@ -137,7 +137,7 @@ add_standing ──► Active ── pay_due (from standing_buffer) ──► Ac
 
 | Caller | Methods |
 |:--|:--|
-| DAO only | `configure_lane`, `remove_lane`, `set_record_steps(lane_id, steps)`, `seed_records`, `add_standing`, `stop_standing`, `pause`, `unpause`, `withdraw`, `set_bond_float`, `set_filing_deposit`, `fund_near`; funding through `ft_on_transfer` |
+| DAO only | `configure_lane`, `remove_lane`, `set_record_steps(lane_id, steps)`, `seed_records`, `add_standing`, `stop_standing`, `fund_standing_near`, `pause`, `unpause`, `withdraw`, `set_bond_float`, `set_filing_deposit`, `fund_near`; funding through `ft_on_transfer` |
 | Council member | `object`, `approve` |
 | Permitted filer | `file_payout` (payable anti-spam deposit), `cancel_payout` (filer or DAO, Waiting only) |
 | Anyone | `fund_bond_float` (payable), `release`, `escalate` (Medium timeout, or retry of `needs_manual_filing`), `pay_due`, `sync_council`, `settle_escalation` |
@@ -145,7 +145,7 @@ add_standing ──► Active ── pay_due (from standing_buffer) ──► Ac
 
 ### 4.6 Events (NEP-297, `standard: "nutus"`, `version: "1.0.0"`)
 
-`instance_created`, `funded`, `lane_configured`, `lane_removed`, `record_steps_set`, `records_seeded`, `payout_filed`, `payout_cancelled`, `payout_objected`, `payout_approved`, `payout_escalated`, `escalation_failed`, `payout_sending`, `payout_paid`, `payout_failed`, `escalation_settled`, `standing_added`, `standing_funded`, `standing_paid`, `standing_short`, `standing_stopped`, `standing_ended`, `withdrawn`, `paused`, `unpaused`, `bond_float_set`, `filing_deposit_set`, `council_synced`. Source of truth: `contracts/instance/src/events.rs`.
+`instance_created`, `funded`, `lane_configured`, `lane_removed`, `record_steps_set`, `records_seeded`, `payout_filed`, `payout_cancelled`, `payout_objected`, `payout_approved`, `payout_escalated`, `escalation_failed`, `payout_sending`, `payout_paid`, `payout_failed`, `escalation_settled`, `standing_added`, `standing_funded`, `standing_paid`, `standing_short`, `standing_failed`, `standing_stopped`, `standing_ended`, `withdrawn`, `paused`, `unpaused`, `bond_float_set`, `filing_deposit_set`, `council_synced`. Source of truth: `contracts/instance/src/events.rs`.
 
 ### 4.7 Sputnik facts the design relies on (verified in source, 2026-11-08)
 
