@@ -5,6 +5,7 @@ members = [
     "contracts/instance",
     "contracts/factory",
     "contracts/test-token",
+    "contracts/tests",
 ]
 
 [workspace.package]

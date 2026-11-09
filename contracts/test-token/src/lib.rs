@@ -12,7 +12,9 @@ use near_contract_standards::storage_management::{
     StorageBalance, StorageBalanceBounds, StorageManagement,
 };
 use near_sdk::json_types::U128;
-use near_sdk::{near, AccountId, BorshStorageKey, NearToken, PanicOnDefault, PromiseOrValue};
+use near_sdk::{
+    env, near, AccountId, BorshStorageKey, NearToken, PanicOnDefault, Promise, PromiseOrValue,
+};
 
 #[near(serializers = [borsh])]
 #[derive(BorshStorageKey)]
@@ -51,6 +53,15 @@ impl Contract {
             memo: Some("test mint"),
         }
         .emit();
+    }
+
+    /// Test only: publish `code` as a global contract identified by its hash.
+    /// near-workspaces has no action for this yet, and the factory needs the
+    /// instance code published to create instances in the sandbox. Only the
+    /// token account itself may call it (it pays the global storage).
+    #[private]
+    pub fn deploy_global(&mut self, #[serializer(borsh)] code: Vec<u8>) -> Promise {
+        Promise::new(env::current_account_id()).deploy_global_contract(code)
     }
 }
 

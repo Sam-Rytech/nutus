@@ -1466,3 +1466,659 @@ fn factory_may_forward_setup_budget_only_as_fund() {
     let msg = format!("fund_standing:{}", id.0);
     assert_eq!(value(c.ft_on_transfer(acc("nutus.near"), U128(5), msg)), 5);
 }
+
+// ───────────────────── property test: I1–I5 ─────────────────────
+//
+// Random sequences of every state-changing call, with callbacks delivered
+// late, out of order, and succeeding or failing at random. Only calls whose
+// preconditions hold are issued (the mocked VM doesn't roll back a panic).
+// After every step: I1–I5 plus exact accounting against an outside model.
+
+mod prop {
+    use super::*;
+    use std::collections::{BTreeMap, BTreeSet};
+
+    /// xorshift64*: deterministic, no extra dependency.
+    struct Rng(u64);
+    impl Rng {
+        fn next(&mut self) -> u64 {
+            self.0 ^= self.0 >> 12;
+            self.0 ^= self.0 << 25;
+            self.0 ^= self.0 >> 27;
+            self.0.wrapping_mul(0x2545_F491_4F6C_DD1D)
+        }
+        fn below(&mut self, n: u64) -> u64 {
+            self.next() % n.max(1)
+        }
+        fn chance(&mut self, pct: u64) -> bool {
+            self.below(100) < pct
+        }
+        fn pick<T: Clone>(&mut self, v: &[T]) -> Option<T> {
+            if v.is_empty() {
+                None
+            } else {
+                Some(v[self.below(v.len() as u64) as usize].clone())
+            }
+        }
+    }
+
+    enum Pending {
+        Sent(PayoutId),
+        Withdrawn(u128),
+        StandingSent {
+            id: StandingId,
+            periods: u32,
+            total: u128,
+            from_notice: bool,
+            prev: U64,
+        },
+        Policy(PayoutId),
+        ProposalAdded(PayoutId),
+        Settle(PayoutId),
+    }
+
+    struct World {
+        c: Contract,
+        rng: Rng,
+        now: u64,
+        pending: Vec<Pending>,
+        /// What the USDC balance must be: funded − paid − withdrawn.
+        model_balance: u128,
+        next_proposal: u64,
+        steps: u32,
+    }
+
+    const LANE: &str = "prop";
+    const P_WINDOW: u64 = 2 * HOUR;
+    const P_TIMEOUT: u64 = 6 * HOUR;
+    const P_PERIOD: u64 = 24 * HOUR;
+    const S_PERIOD: u64 = 12 * HOUR;
+
+    impl World {
+        fn new(seed: u64) -> Self {
+            // Fresh, empty chain: testing_env! carries storage across calls.
+            near_sdk::env::set_blockchain_interface(near_sdk::MockedBlockchain::new(
+                builder("nutus.near", 0, T0, 50 * ONE_NEAR).build(),
+                test_vm_config(),
+                RuntimeFeesConfig::test(),
+                vec![],
+                Default::default(),
+                Default::default(),
+                None,
+            ));
+            let mut cfg = lane_cfg();
+            cfg.id = LANE.into();
+            cfg.period_cap = U128(3_000);
+            cfg.period_ns = Some(U64(P_PERIOD));
+            cfg.window_ns = Some(U64(P_WINDOW));
+            cfg.medium_timeout_ns = Some(U64(P_TIMEOUT));
+            let mut c = Contract::new(
+                acc(DAO),
+                SetupConfig {
+                    lanes: vec![cfg],
+                    council: Some(vec![acc(ALICE), acc(BOB)]),
+                    ..Default::default()
+                },
+            );
+            call(USDC, 0, T0);
+            let _ = c.ft_on_transfer(acc(DAO), U128(20_000), "fund".into());
+            World {
+                c,
+                rng: Rng(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1),
+                now: T0,
+                pending: vec![],
+                model_balance: 20_000,
+                next_proposal: 0,
+                steps: 0,
+            }
+        }
+
+        fn as_(&self, who: &str, deposit: u128) {
+            call(who, deposit, self.now);
+        }
+
+        fn payouts(&self) -> Vec<Payout> {
+            self.c.payouts.iter().cloned().collect()
+        }
+
+        fn standings(&self) -> Vec<Standing> {
+            self.c.standing.iter().cloned().collect()
+        }
+
+        fn ids_where(&self, f: impl Fn(&Payout) -> bool) -> Vec<PayoutId> {
+            self.payouts()
+                .into_iter()
+                .filter(|p| f(p))
+                .map(|p| p.id)
+                .collect()
+        }
+
+        fn step(&mut self) {
+            self.steps += 1;
+            match self.rng.below(17) {
+                0 | 1 => self.now += self.rng.below(3 * HOUR),
+                2 => self.now += self.rng.below(2 * P_PERIOD),
+                3 | 4 => self.file(),
+                5 => self.release(),
+                6 => self.approve(),
+                7 => self.object(),
+                8 => self.escalate(),
+                9 => self.cancel(),
+                10 => self.withdraw(),
+                11 => self.fund(),
+                12 => self.standing_op(),
+                13 => self.toggle_pause(),
+                14 => self.settle(),
+                _ => self.deliver(),
+            }
+            self.check();
+        }
+
+        fn file(&mut self) {
+            if self.c.paused {
+                return;
+            }
+            let amount = 1 + u128::from(self.rng.below(500));
+            self.as_(FILER, DEPOSIT);
+            let usage = self.c.get_period_usage(LANE.into()).unwrap();
+            if usage.remaining.0 < amount || available(&usdc(&self.c)) < amount {
+                return;
+            }
+            self.c
+                .file_payout(LANE.into(), acc(CAROL), U128(amount), "l".into(), None);
+        }
+
+        fn release(&mut self) {
+            let now = self.now;
+            let ids = self.ids_where(|p| {
+                p.status == PayoutStatus::Waiting && p.tier == Tier::Small && now >= p.deadline_ns.0
+            });
+            if self.c.paused {
+                return;
+            }
+            if let Some(id) = self.rng.pick(&ids) {
+                self.as_("keeper.near", 0);
+                let _ = self.c.release(id);
+                self.pending.push(Pending::Sent(id));
+            }
+        }
+
+        fn approve(&mut self) {
+            let ids =
+                self.ids_where(|p| p.status == PayoutStatus::Waiting && p.tier == Tier::Medium);
+            if self.c.paused {
+                return;
+            }
+            if let Some(id) = self.rng.pick(&ids) {
+                self.as_(ALICE, 0);
+                let _ = self.c.approve(id);
+                self.pending.push(Pending::Sent(id));
+            }
+        }
+
+        fn object(&mut self) {
+            let now = self.now;
+            let ids = self.ids_where(|p| {
+                p.status == PayoutStatus::Waiting && p.tier == Tier::Small && now < p.deadline_ns.0
+            });
+            if let Some(id) = self.rng.pick(&ids) {
+                self.as_(BOB, 0);
+                let _ = self.c.object(id, "not done".into());
+                self.pending.push(Pending::Policy(id));
+            }
+        }
+
+        fn escalate(&mut self) {
+            let now = self.now;
+            let ids = self.ids_where(|p| match &p.status {
+                PayoutStatus::Waiting => p.tier == Tier::Medium && now >= p.deadline_ns.0,
+                PayoutStatus::Objected {
+                    needs_manual_filing,
+                    ..
+                } => *needs_manual_filing,
+                _ => false,
+            });
+            if let Some(id) = self.rng.pick(&ids) {
+                self.as_("keeper.near", 0);
+                let _ = self.c.escalate(id);
+                self.pending.push(Pending::Policy(id));
+            }
+        }
+
+        fn cancel(&mut self) {
+            let ids = self.ids_where(|p| {
+                matches!(
+                    p.status,
+                    PayoutStatus::Waiting | PayoutStatus::Objected { .. }
+                )
+            });
+            if let Some(id) = self.rng.pick(&ids) {
+                let waiting = self.c.get_payout(id).unwrap().status == PayoutStatus::Waiting;
+                let who = if waiting && self.rng.chance(50) {
+                    FILER
+                } else {
+                    DAO
+                };
+                self.as_(who, 0);
+                self.c.cancel_payout(id);
+            }
+        }
+
+        fn withdraw(&mut self) {
+            let avail = available(&usdc(&self.c));
+            if avail == 0 {
+                return;
+            }
+            let amount = 1 + u128::from(self.rng.below(avail.min(5_000) as u64));
+            let notice_before = usdc(&self.c).committed_notice;
+            self.as_(DAO, 0);
+            let _ = self.c.withdraw(USDC.into(), U128(amount), None);
+            // I2: withdraw never touches committed notice.
+            assert_eq!(usdc(&self.c).committed_notice, notice_before, "I2");
+            // Debited up front; the callback credits it back on failure.
+            self.model_balance -= amount;
+            self.pending.push(Pending::Withdrawn(amount));
+        }
+
+        fn fund(&mut self) {
+            let amount = 1 + u128::from(self.rng.below(3_000));
+            self.as_(USDC, 0);
+            if self.rng.chance(60) || self.c.standing.is_empty() {
+                let _ = self.c.ft_on_transfer(acc(DAO), U128(amount), "fund".into());
+                self.model_balance += amount;
+            } else {
+                let s = self.rng.pick(&self.standings()).unwrap();
+                let left = value(self.c.ft_on_transfer(
+                    acc(DAO),
+                    U128(amount),
+                    format!("fund_standing:{}", s.id.0),
+                ));
+                self.model_balance += amount - left;
+            }
+        }
+
+        fn standing_op(&mut self) {
+            let all = self.standings();
+            match self.rng.below(3) {
+                0 => {
+                    let amount = 10 + u128::from(self.rng.below(90));
+                    let notice = self.rng.below(4) as u32;
+                    if available(&usdc(&self.c)) < amount * u128::from(notice) {
+                        return;
+                    }
+                    let first = self.now + self.rng.below(S_PERIOD);
+                    let ends = self.rng.chance(30).then(|| U64(first + 5 * S_PERIOD));
+                    self.as_(DAO, 0);
+                    self.c.add_standing(StandingInput {
+                        recipient: acc(CAROL),
+                        token: USDC.into(),
+                        amount: U128(amount),
+                        period_ns: U64(S_PERIOD),
+                        first_due_ns: U64(first),
+                        ends_at_ns: ends,
+                        notice_periods: notice,
+                        memo: None,
+                    });
+                }
+                1 => {
+                    let ok: Vec<_> = all
+                        .iter()
+                        .filter(|s| {
+                            !s.sending
+                                && match s.state {
+                                    StandingState::Ended => false,
+                                    StandingState::Active => !self.c.paused,
+                                    StandingState::Noticed { .. } => true,
+                                }
+                        })
+                        .cloned()
+                        .collect();
+                    let Some(before) = self.rng.pick(&ok) else {
+                        return;
+                    };
+                    self.as_("keeper.near", 0);
+                    let sent = self.c.pay_due(before.id).is_some();
+                    let after = self.c.standing_entry(before.id);
+                    if sent {
+                        let periods = ((after.next_due_ns.0 - before.next_due_ns.0)
+                            / before.period_ns.0) as u32;
+                        self.pending.push(Pending::StandingSent {
+                            id: before.id,
+                            periods,
+                            total: before.amount.0 * u128::from(periods),
+                            from_notice: matches!(before.state, StandingState::Noticed { .. }),
+                            prev: before.next_due_ns,
+                        });
+                    }
+                }
+                _ => {
+                    let ok: Vec<_> = all
+                        .iter()
+                        .filter(|s| s.state == StandingState::Active && !s.sending)
+                        .map(|s| s.id)
+                        .collect();
+                    if let Some(id) = self.rng.pick(&ok) {
+                        self.as_(DAO, 0);
+                        self.c.stop_standing(id);
+                    }
+                }
+            }
+        }
+
+        fn toggle_pause(&mut self) {
+            self.as_(DAO, 0);
+            if self.c.paused {
+                self.c.unpause();
+            } else if self.rng.chance(40) {
+                self.c.pause();
+            }
+        }
+
+        fn settle(&mut self) {
+            let ids = self.ids_where(|p| matches!(p.status, PayoutStatus::Escalated { .. }));
+            let in_flight: BTreeSet<u64> = self
+                .pending
+                .iter()
+                .filter_map(|p| match p {
+                    Pending::Settle(id) => Some(id.0),
+                    _ => None,
+                })
+                .collect();
+            let ids: Vec<_> = ids
+                .into_iter()
+                .filter(|i| !in_flight.contains(&i.0))
+                .collect();
+            if let Some(id) = self.rng.pick(&ids) {
+                self.as_("keeper.near", 0);
+                let _ = self.c.settle_escalation(id);
+                self.pending.push(Pending::Settle(id));
+            }
+        }
+
+        fn deliver(&mut self) {
+            if self.pending.is_empty() {
+                return;
+            }
+            let i = self.rng.below(self.pending.len() as u64) as usize;
+            let job = self.pending.swap_remove(i);
+            let ok = self.rng.chance(75);
+            let result = if ok {
+                ok_result()
+            } else {
+                PromiseResult::Failed
+            };
+            let balance = if self.rng.chance(85) {
+                50 * ONE_NEAR
+            } else {
+                ONE_NEAR / 2
+            };
+            callback_with_balance(self.now, result, balance);
+            match job {
+                Pending::Sent(id) => {
+                    let amount = self.c.get_payout(id).unwrap().amount.0;
+                    self.c.on_sent(id);
+                    if ok {
+                        self.model_balance -= amount;
+                    }
+                }
+                Pending::Withdrawn(amount) => {
+                    self.c.on_withdrawn(USDC.into(), U128(amount), acc(DAO));
+                    if !ok {
+                        self.model_balance += amount;
+                    }
+                }
+                Pending::StandingSent {
+                    id,
+                    periods,
+                    total,
+                    from_notice,
+                    prev,
+                } => {
+                    self.c
+                        .on_standing_sent(id, periods, U128(total), from_notice, prev);
+                    if ok {
+                        self.model_balance -= total;
+                    }
+                }
+                Pending::Policy(id) => {
+                    let policy = if ok {
+                        Ok(policy_from(ONE_NEAR))
+                    } else {
+                        Err(PromiseError::Failed)
+                    };
+                    if let PromiseOrValue::Promise(_) = self.c.on_policy_for_escalation(id, policy)
+                    {
+                        self.pending.push(Pending::ProposalAdded(id));
+                    }
+                }
+                Pending::ProposalAdded(id) => {
+                    let r = if ok {
+                        self.next_proposal += 1;
+                        Ok(self.next_proposal)
+                    } else {
+                        Err(PromiseError::Failed)
+                    };
+                    self.c.on_proposal_added(id, U128(ONE_NEAR), r);
+                }
+                Pending::Settle(id) => {
+                    let status = if ok {
+                        ProposalStatus::Approved
+                    } else {
+                        ProposalStatus::Rejected
+                    };
+                    self.c.on_escalation_proposal(id, Ok(Proposal { status }));
+                }
+            }
+        }
+
+        fn check(&self) {
+            let ctx = format!("step {}", self.steps);
+            let b = usdc(&self.c);
+            // I1 on every book.
+            for (_, book) in self.c.tokens.iter() {
+                assert_i1(book);
+            }
+            // Balance matches the outside model.
+            assert_eq!(b.balance.0, self.model_balance, "balance model, {ctx}");
+
+            let payouts = self.payouts();
+            let open = |p: &Payout| {
+                matches!(
+                    p.status,
+                    PayoutStatus::Waiting
+                        | PayoutStatus::Escalating { .. }
+                        | PayoutStatus::Objected { .. }
+                        | PayoutStatus::Sending
+                )
+            };
+            let standing_in_flight: u128 = self
+                .pending
+                .iter()
+                .map(|p| match p {
+                    Pending::StandingSent { total, .. } => *total,
+                    _ => 0,
+                })
+                .sum();
+            let reserved: u128 = payouts
+                .iter()
+                .filter(|p| open(p))
+                .map(|p| p.amount.0)
+                .sum::<u128>()
+                + standing_in_flight;
+            assert_eq!(b.reserved.0, reserved, "reserved, {ctx}");
+            let standings = self.standings();
+            assert_eq!(
+                b.standing_buffer.0,
+                standings.iter().map(|s| s.buffer.0).sum::<u128>(),
+                "standing_buffer, {ctx}"
+            );
+            assert_eq!(
+                b.committed_notice.0,
+                standings.iter().map(|s| s.notice_locked.0).sum::<u128>(),
+                "committed_notice, {ctx}"
+            );
+            for s in &standings {
+                if s.state == StandingState::Ended {
+                    assert_eq!(
+                        (s.buffer.0, s.notice_locked.0),
+                        (0, 0),
+                        "ended standing, {ctx}"
+                    );
+                }
+            }
+            assert_eq!(
+                self.c.deposits_held,
+                payouts
+                    .iter()
+                    .filter(|p| open(p))
+                    .map(|p| p.deposit.0)
+                    .sum::<u128>(),
+                "deposits_held, {ctx}"
+            );
+            let lane = self.c.get_lane(LANE.into()).unwrap();
+            assert_eq!(
+                lane.open_payouts as usize,
+                payouts.iter().filter(|p| open(p)).count(),
+                "open_payouts, {ctx}"
+            );
+
+            // I3: a payout is Sending exactly while its transfer callback is pending.
+            let sending: BTreeSet<u64> = payouts
+                .iter()
+                .filter(|p| p.status == PayoutStatus::Sending)
+                .map(|p| p.id.0)
+                .collect();
+            let awaited: BTreeSet<u64> = self
+                .pending
+                .iter()
+                .filter_map(|p| match p {
+                    Pending::Sent(id) => Some(id.0),
+                    _ => None,
+                })
+                .collect();
+            assert_eq!(sending, awaited, "I3, {ctx}");
+
+            // I5: every record point references a real Paid payout or an
+            // escalation the DAO approved.
+            let mut approved_proposals = BTreeMap::new();
+            for p in &payouts {
+                if let PayoutStatus::Settled {
+                    proposal_id,
+                    approved: true,
+                } = p.status
+                {
+                    approved_proposals.insert(proposal_id.0, p.recipient.clone());
+                }
+            }
+            if let Some(rec) = self.c.records.get(&acc(CAROL)) {
+                assert_eq!(
+                    rec.paid_jobs as usize,
+                    rec.sources.len(),
+                    "paid_jobs, {ctx}"
+                );
+                for src in &rec.sources {
+                    match src {
+                        SourceRef::NutusPayout { id } => assert_eq!(
+                            self.c.get_payout(*id).unwrap().status,
+                            PayoutStatus::Paid,
+                            "I5 payout, {ctx}"
+                        ),
+                        SourceRef::DaoProposal { id } => {
+                            assert!(approved_proposals.contains_key(&id.0), "I5 proposal, {ctx}")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn ok_result() -> PromiseResult {
+        PromiseResult::Successful(vec![])
+    }
+
+    /// `NUTUS_PROP_SEEDS=200 cargo test prop` for a longer run.
+    #[test]
+    fn invariants_hold_over_random_sequences() {
+        let seeds: u64 = std::env::var("NUTUS_PROP_SEEDS")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(20);
+        let mut seen = BTreeSet::new();
+        for seed in 1..=seeds {
+            let mut w = World::new(seed);
+            for _ in 0..200 {
+                w.step();
+            }
+            // Drain every callback, then check once more.
+            while !w.pending.is_empty() {
+                w.deliver();
+                w.check();
+            }
+            for p in w.payouts() {
+                seen.insert(format!("{:?}", p.status.kind()));
+            }
+            for s in w.standings() {
+                seen.insert(match s.state {
+                    StandingState::Active => "StandingActive".into(),
+                    StandingState::Noticed { .. } => "StandingNoticed".into(),
+                    StandingState::Ended => "StandingEnded".into(),
+                });
+            }
+        }
+        // Guard against a vacuous run: the sequences must reach these states.
+        for state in [
+            "Paid",
+            "Failed",
+            "Escalated",
+            "Settled",
+            "Objected",
+            "Cancelled",
+            "StandingNoticed",
+            "StandingEnded",
+        ] {
+            assert!(
+                seen.contains(state),
+                "random runs never reached {state}: {seen:?}"
+            );
+        }
+    }
+
+    type DaoOnlyCall = Box<dyn Fn(&mut Contract)>;
+
+    /// I4: every DAO-only method refuses any other caller.
+    #[test]
+    fn dao_only_methods_refuse_others() {
+        let mut c = setup();
+        let id = add_standing(&mut c, 1, None);
+        let attempts: Vec<DaoOnlyCall> = vec![
+            Box::new(|c| c.configure_lane(lane_cfg())),
+            Box::new(|c| c.remove_lane("design".into())),
+            Box::new(|c| c.set_record_steps("design".into(), vec![])),
+            Box::new(|c| c.seed_records(vec![])),
+            Box::new(|c| {
+                c.add_standing(standing_input(1, None));
+            }),
+            Box::new(move |c| c.stop_standing(id)),
+            Box::new(|c| c.pause()),
+            Box::new(|c| c.unpause()),
+            Box::new(|c| {
+                let _ = c.withdraw(USDC.into(), U128(1), None);
+            }),
+            Box::new(|c| c.set_bond_float(U128(1))),
+            Box::new(|c| c.set_filing_deposit(U128(1))),
+            Box::new(|c| c.fund_near()),
+            Box::new(move |c| c.fund_standing_near(id)),
+        ];
+        for (i, attempt) in attempts.iter().enumerate() {
+            call(ALICE, ONE_NEAR, T0);
+            let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| attempt(&mut c)));
+            assert!(r.is_err(), "DAO-only method #{i} accepted a non-DAO caller");
+        }
+        // Funding from anyone but the DAO (or its factory) is refunded, not booked.
+        call(USDC, 0, T0);
+        assert_eq!(
+            value(c.ft_on_transfer(acc(ALICE), U128(7), "fund".into())),
+            7
+        );
+    }
+}
