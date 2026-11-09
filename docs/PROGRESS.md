@@ -17,9 +17,9 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 |:--|:--|:--|
 | Planning and naming | AB | [x] done |
 | Interfaces frozen | A → B | [~] ABI committed; B to generate types.ts. H2/H3 ready: `deployments/testnet.env` |
-| Instance contract | A | [x] every §4.5 method implemented; 80 unit tests. Integration tests (Phase 5) next |
+| Instance contract | A | [x] every §4.5 method implemented and tested. Testnet runs the pre-fix code (see Blockers) |
 | Factory and setup | A | [x] deployed on testnet; demo DAO set up through a real proposal |
-| Contract tests | A | [~] unit + property (I1–I5) done; sandbox suite against real Sputnik in CI |
+| Contract tests | A | [x] 84 instance + 15 factory unit, property test (I1–I5), 8 sandbox scenarios vs real Sputnik (CI) |
 | Keeper | A | [x] `packages/keeper`; smoke-tested read-only on testnet |
 | Report port | B | [ ] |
 | Core (builders, preflight, maths) | B | [ ] |
@@ -96,14 +96,14 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 
 ## Phase 5: Integration tests and hardening
 **A**
-- [ ] near-workspaces with real Sputnik wasm: setup via real proposal (USDC and NEAR), refund on failed setup
-- [ ] Boundaries: small / medium / full vote, record steps, cap reset
-- [ ] Objection in window → real proposal with the right kind, amount and description; bond returns on approve / reject / finalize
-- [ ] Objection after window refused; non-objector refused
-- [ ] Medium approve and timeout
-- [ ] Double release no-op; failed transfer restores budget
-- [ ] Standing: periods, notice, `withdraw` into notice refused even from the DAO
-- [ ] Pause semantics; `sync_council` with a custom policy; `settle_escalation`
+- [x] near-workspaces with real Sputnik wasm: setup via real proposal (USDC and NEAR), refund on failed setup (`contracts/tests`, 8 scenarios, CI)
+- [x] Boundaries: small / medium / full vote (sandbox), record steps, cap reset (unit)
+- [~] Objection in window → real proposal with the right kind, amount and description; bond returns on approve (sandbox). Reject / finalize-expired not yet covered
+- [x] Objection after window refused; non-objector refused
+- [x] Medium approve and timeout
+- [x] Double release no-op; failed transfer restores budget
+- [x] Standing: periods, notice, `withdraw` into notice refused even from the DAO (through a real DAO proposal)
+- [x] Pause semantics; `sync_council` with a custom policy; `settle_escalation`
 - [x] Property test: random sequences, I1–I5 after every step (plus exact accounting vs an outside model; callbacks out of order; coverage guard)
 - [x] Keeper: release / escalate / pay_due / settle, idempotent (17 tests; skips short buffers and manual-filing cases instead of burning gas)
 - [x] `THREAT_MODEL.md` (actors, invariants → tests, residual risks)
@@ -194,4 +194,4 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | 2026-11-09 | c3 approves → instance nutus-demo.nutus.nutus-dev.testnet created and funded with 5,000 tUSDC (~37 TGas) | `3NgUssKdxvofTFLjaJSfKSqQygD8BAaDHPvVs2oEqTMx` | A |
 
 ## Blockers
-_None yet._
+- **Testnet instance code is one fix behind.** The global code on testnet (`9C622Ttn…`) predates the escalation fix (recipient registration). Instances are immutable by design, so updating means publishing the new hash and a new factory (~34 NEAR burned). Deployer has ~2 NEAR. Needed before the demo shows an objection.
