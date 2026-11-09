@@ -52,7 +52,7 @@ const GAS_ON_WITHDRAWN: Gas = Gas::from_tgas(10);
 const GAS_GET_POLICY: Gas = Gas::from_tgas(10);
 const GAS_ADD_PROPOSAL: Gas = Gas::from_tgas(30);
 const GAS_ON_PROPOSAL_ADDED: Gas = Gas::from_tgas(20);
-const GAS_ON_POLICY: Gas = Gas::from_tgas(70);
+const GAS_ON_POLICY: Gas = Gas::from_tgas(90);
 const GAS_ON_COUNCIL_POLICY: Gas = Gas::from_tgas(30);
 const GAS_GET_PROPOSAL: Gas = Gas::from_tgas(10);
 const GAS_ON_SETTLE: Gas = Gas::from_tgas(20);
@@ -935,7 +935,7 @@ impl Contract {
         payout_id: PayoutId,
         #[callback_result] policy: Result<Policy, PromiseError>,
     ) -> PromiseOrValue<()> {
-        let p = self.payout(payout_id);
+        let mut p = self.payout(payout_id);
         let PayoutStatus::Escalating {
             objected_by,
             reason,
@@ -951,6 +951,16 @@ impl Contract {
         if self.spare_near() < bond {
             self.escalation_failed(p, "bond float short");
             return PromiseOrValue::Value(());
+        }
+        // The DAO's Transfer pays the recipient directly. Register them with
+        // the token now, from the filer's deposit as on release, or the
+        // approved proposal fails at execution and Sputnik keeps the bond
+        // (found in the sandbox suite). The vote takes far longer than this.
+        if p.token != NEAR_TOKEN_ID && p.deposit.0 >= FT_STORAGE_DEPOSIT {
+            p.deposit = U128(p.deposit.0 - FT_STORAGE_DEPOSIT);
+            self.deposits_held -= FT_STORAGE_DEPOSIT;
+            storage_deposit(&p.token, &p.recipient).detach();
+            self.put_payout(p.clone());
         }
         let lane_name = self
             .lanes
@@ -1552,17 +1562,11 @@ fn transfer(token: &TokenId, to: &AccountId, amount: u128, register: bool) -> Pr
     let token: AccountId = token
         .parse()
         .unwrap_or_else(|_| env::panic_str("BAD_TOKEN"));
-    let mut p = Promise::new(token);
-    if register {
-        p = p.function_call(
-            "storage_deposit",
-            json!({ "account_id": to, "registration_only": true })
-                .to_string()
-                .into_bytes(),
-            NearToken::from_yoctonear(FT_STORAGE_DEPOSIT),
-            GAS_STORAGE_DEPOSIT,
-        );
-    }
+    let p = if register {
+        storage_deposit(token.as_str(), to)
+    } else {
+        Promise::new(token)
+    };
     p.function_call(
         "ft_transfer",
         json!({ "receiver_id": to, "amount": U128(amount) })
@@ -1570,6 +1574,22 @@ fn transfer(token: &TokenId, to: &AccountId, amount: u128, register: bool) -> Pr
             .into_bytes(),
         NearToken::from_yoctonear(1),
         GAS_FT_TRANSFER,
+    )
+}
+
+/// `storage_deposit(to, registration_only)` on `token`, paying the standard
+/// registration; a token refunds it if `to` is already registered.
+fn storage_deposit(token: &str, to: &AccountId) -> Promise {
+    let token: AccountId = token
+        .parse()
+        .unwrap_or_else(|_| env::panic_str("BAD_TOKEN"));
+    Promise::new(token).function_call(
+        "storage_deposit",
+        json!({ "account_id": to, "registration_only": true })
+            .to_string()
+            .into_bytes(),
+        NearToken::from_yoctonear(FT_STORAGE_DEPOSIT),
+        GAS_STORAGE_DEPOSIT,
     )
 }
 

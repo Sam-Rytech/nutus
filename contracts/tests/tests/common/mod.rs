@@ -304,14 +304,17 @@ impl Env {
             if self.proposal(dao, id).await?["status"] != "InProgress" {
                 break;
             }
-            done(
-                voter
-                    .call(dao, "act_proposal")
-                    .args_json(json!({"id": id, "action": "VoteApprove", "proposal": kind}))
-                    .max_gas()
-                    .transact()
-                    .await?,
-            )?;
+            // The vote itself must land; whether the proposal's actions then
+            // succeed is the proposal's status, which callers assert on.
+            let r = voter
+                .call(dao, "act_proposal")
+                .args_json(json!({"id": id, "action": "VoteApprove", "proposal": kind}))
+                .max_gas()
+                .transact()
+                .await?;
+            if r.is_failure() {
+                bail!("vote failed: {:#?}", r.failures());
+            }
         }
         Ok(())
     }

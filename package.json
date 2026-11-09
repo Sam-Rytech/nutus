@@ -1,0 +1,9 @@
+{
+  "name": "nutus",
+  "private": true,
+  "packageManager": "pnpm@11.13.1",
+  "scripts": {
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint"
+  }
+}

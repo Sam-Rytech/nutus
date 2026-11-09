@@ -1,0 +1,22 @@
+{
+  "name": "@nutus/keeper",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Nutus keeper: calls release / escalate / pay_due / settle_escalation when they're due. Anyone can run it; it only holds gas money.",
+  "type": "module",
+  "bin": { "nutus-keeper": "src/main.ts" },
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "test": "vitest run",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "near-api-js": "^7.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "tsx": "^4.23.0",
+    "typescript": "^5.9.0",
+    "vitest": "^5.1.0"
+  }
+}

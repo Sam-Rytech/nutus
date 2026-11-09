@@ -1,3 +1,7 @@
 packages:
   - "packages/*"
   - "app"
+
+# esbuild (via tsx/vitest) verifies its platform binary in a postinstall script.
+allowBuilds:
+  esbuild: true

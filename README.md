@@ -7,6 +7,8 @@ Nutus sits beside a NEAR DAO treasury (Sputnik DAO v2 / Trezu). The council deci
 - Spec: [docs/NUTUS_SPEC.md](docs/NUTUS_SPEC.md)
 - Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - Progress tracker: [docs/PROGRESS.md](docs/PROGRESS.md)
+- Threat model: [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md)
+- Testnet runbook: [docs/TESTNET.md](docs/TESTNET.md)
 
 ## Layout
 
@@ -32,6 +34,27 @@ cargo test --workspace          # unit tests
 cargo install cargo-near        # once
 sh scripts/abi.sh               # build wasm + refresh packages/core/abi/*.json
 ```
+
+## Tests
+
+```bash
+cargo test --workspace --exclude nutus-integration-tests   # unit + property tests (any OS)
+NUTUS_PROP_SEEDS=200 cargo test -p nutus-instance prop      # longer property run
+cargo test -p nutus-integration-tests                       # sandbox + real Sputnik (Linux/macOS; CI)
+pnpm -r test                                                # keeper
+```
+
+## Keeper
+
+Anyone can run one; it only needs gas money. It calls `release`, `escalate`, `pay_due` and `settle_escalation` when they're due, and treats "already done" refusals as no-ops.
+
+```bash
+pnpm install
+KEEPER_ACCOUNT_ID=you.testnet KEEPER_PRIVATE_KEY=ed25519:... \
+FACTORY=nutus.nutus-dev.testnet pnpm --filter @nutus/keeper start
+```
+
+`INSTANCES=a,b` serves a fixed list instead of every instance the factory made; `ONCE=1` runs a single round; `NEAR_RPC_URL` picks the network.
 
 ## Trust statement
 

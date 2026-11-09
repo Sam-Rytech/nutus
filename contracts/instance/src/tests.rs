@@ -701,8 +701,16 @@ fn escalation_files_proposal_then_releases_reservation() {
     let mut c = setup();
     let id = objected(&mut c);
     callback(T0 + HOUR, policy_json(ONE_NEAR));
+    let deposit_before = c.get_payout(id).unwrap().deposit.0;
     let next = c.on_policy_for_escalation(id, Ok(policy_from(ONE_NEAR)));
     assert!(matches!(next, PromiseOrValue::Promise(_)));
+    // The recipient's token registration is paid from the filer's deposit, so
+    // the DAO's Transfer can't fail for an unregistered recipient.
+    assert_eq!(
+        c.get_payout(id).unwrap().deposit.0,
+        deposit_before - FT_STORAGE_DEPOSIT
+    );
+    assert_eq!(c.deposits_held, deposit_before - FT_STORAGE_DEPOSIT);
 
     callback(T0 + HOUR, PromiseResult::Successful(b"7".to_vec()));
     c.on_proposal_added(id, U128(ONE_NEAR), Ok(7));

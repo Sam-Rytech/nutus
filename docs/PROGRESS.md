@@ -19,8 +19,8 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | Interfaces frozen | A → B | [~] ABI committed; B to generate types.ts. H2/H3 ready: `deployments/testnet.env` |
 | Instance contract | A | [x] every §4.5 method implemented; 80 unit tests. Integration tests (Phase 5) next |
 | Factory and setup | A | [x] deployed on testnet; demo DAO set up through a real proposal |
-| Contract tests | A | [ ] |
-| Keeper | A | [ ] |
+| Contract tests | A | [~] unit + property (I1–I5) done; sandbox suite against real Sputnik in CI |
+| Keeper | A | [x] `packages/keeper`; smoke-tested read-only on testnet |
 | Report port | B | [ ] |
 | Core (builders, preflight, maths) | B | [ ] |
 | Web app | B | [ ] |
@@ -104,9 +104,9 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 - [ ] Double release no-op; failed transfer restores budget
 - [ ] Standing: periods, notice, `withdraw` into notice refused even from the DAO
 - [ ] Pause semantics; `sync_council` with a custom policy; `settle_escalation`
-- [ ] Property test: random sequences, I1–I5 after every step
-- [ ] Keeper: release / escalate / pay_due / settle, idempotent
-- [ ] `THREAT_MODEL.md`
+- [x] Property test: random sequences, I1–I5 after every step (plus exact accounting vs an outside model; callbacks out of order; coverage guard)
+- [x] Keeper: release / escalate / pay_due / settle, idempotent (17 tests; skips short buffers and manual-filing cases instead of burning gas)
+- [x] `THREAT_MODEL.md` (actors, invariants → tests, residual risks)
 
 **B**
 - [ ] Seat watch: status bands, freeze distance, drafted seat proposals (person files)
@@ -172,6 +172,10 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | 2026-11-09 | Test-only NEP-141 in `contracts/test-token` (anyone can mint) | Testnet demo and Phase 5 integration tests need a token we control |
 | 2026-11-09 | The factory registers itself once with each setup token at deploy | Found on testnet: `ft_transfer_call` to an unregistered factory panics, failing the whole setup proposal. Registering once keeps setup at one proposal, two actions |
 | 2026-11-09 | Global instance code costs ~33.5 NEAR (335 KB, burned) | Measured on testnet; matches 10 NEAR / 100 KB. One-off, same on mainnet |
+| 2026-11-09 | Sandbox tests copy the Sputnik v2 wasm from a live testnet DAO at test time | Tests run against the code DAOs actually use, without vendoring a binary |
+| 2026-11-09 | Test token gets a `#[private]` `deploy_global` | near-workspaces 0.24 can't publish global contract code |
+| 2026-11-09 | Escalation registers the recipient with the token (from the filer's deposit) | Found by the sandbox suite: the DAO's Transfer to an unregistered recipient fails at execution and Sputnik keeps the bond |
+| 2026-11-09 | Keeper never retries `needs_manual_filing` or short standing buffers | Both would fail again and burn gas until a person acts |
 | 2026-11-09 | Spec V2 needs a note: Sputnik kept the 1 NEAR bond when a proposal's execution **Failed** (proposal 0 on testnet) | V2 lists approve / reject / expire as refunding. A failed escalation would cost the bond float its bond; keep failures rare with preflight |
 
 ## Testnet log
