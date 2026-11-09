@@ -6,8 +6,8 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 
 | Builder | Name | GitHub | Role |
 |:--|:--|:--|:--|
-| A | _fill in_ | _fill in_ | Chain lead: contracts, tests, keeper, testnet, threat model |
-| B | _fill in_ | _fill in_ | Data and product lead: report, core, preflight, seat watch, web app, notifications |
+| A | Temitayo | Sam-Rytech | Chain lead: contracts, tests, keeper, testnet, threat model |
+| B | _fill in_ | KayProject | Data and product lead: report, core, preflight, seat watch, web app, notifications |
 
 ---
 
@@ -16,9 +16,9 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | Area | Owner | Status |
 |:--|:--|:--|
 | Planning and naming | AB | [x] done |
-| Interfaces frozen | A → B | [ ] |
-| Instance contract | A | [ ] |
-| Factory and setup | A | [ ] |
+| Interfaces frozen | A → B | [~] stubs + ABI on `a/foundations` |
+| Instance contract | A | [~] interface, views, pause |
+| Factory and setup | A | [~] interface, views |
 | Contract tests | A | [ ] |
 | Keeper | A | [ ] |
 | Report port | B | [ ] |
@@ -40,10 +40,10 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 - [x] `NUTUS_SPEC.md`, `ARCHITECTURE.md`, `PROGRESS.md`
 
 ## Phase 1: Foundations
-- [ ] **AB** Create monorepo per the ARCHITECTURE §9 layout; CI (cargo test, near-workspaces, pnpm test, lint)
-- [ ] **AB** Fill in builder names and GitHub handles above
-- [ ] **A** Write instance method signatures, structs and events (stubs compile)
-- [ ] **A** `cargo near abi` → **B** generates `packages/core/types.ts` — **H1: interfaces frozen**
+- [x] **AB** Create monorepo per the ARCHITECTURE §9 layout; CI (fmt, clippy, cargo test, wasm build + ABI drift check; pnpm job switches on once a lockfile exists). near-workspaces joins CI in Phase 5
+- [~] **AB** Fill in builder names and GitHub handles above (B's name still needed)
+- [x] **A** Write instance method signatures, structs and events (stubs compile): `contracts/{common,instance,factory}`; init, guards, views, pause/unpause, `set_bond_float`, `set_filing_deposit` already work
+- [~] **A** `cargo near abi` → **B** generates `packages/core/types.ts` — **H1: interfaces frozen**. A: run `sh scripts/abi.sh`, ABIs land in `packages/core/abi/`
 - [ ] **B** Mock contract client for UI work
 - [ ] **AB** Kill check: read Social Money entries (Petty Cash, Patch Fund, Chai Pot, NDBOT) and the Trezu roadmap; record findings below
 - [ ] **AB** Recheck event rules and submission fields on the event site
@@ -132,6 +132,8 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | Q2 | Can one `ft_on_transfer` create, attach global code, init and forward within gas? | A | [ ] |
 | Q3 | How does Trezu display FunctionCall proposals to arbitrary contracts? | B | [ ] |
 | Q4 | Overlap with the four Social Money entries / Trezu roadmap? | AB | [ ] |
+| Q5 | Instance name = first label of the DAO account (`x.sputnik-dao.near` → `x.nutus.near`). Two DAOs with the same first label under different factories would collide; hash or full-name scheme? | A | [ ] |
+| Q6 | Native `cargo test` on Windows needs the aws-lc toolchain (via near-sdk → near-crypto) | A | [x] `AWS_LC_SYS_PREBUILT_NASM=1` (README) |
 
 ## Decisions log
 | Date | Decision | Why |
@@ -144,6 +146,11 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | 2026-11-08 | Records = Nutus Paid + settled escalations + DAO-voted seed | Every point traceable; no invented score |
 | 2026-11-08 | Recipient storage registered on release from the anti-spam deposit | Removes the commonest "approved but not paid" cause |
 | 2026-11-08 | Seat watch drafts; a person files | Never removes anyone itself |
+| 2026-11-09 | Record steps are **per lane** (`set_record_steps(lane_id, steps)`) | Steps are in token units and lanes can use different tokens |
+| 2026-11-09 | Payout statuses add `Escalating` (async in flight) and `Settled{approved}` | Blocks double escalation during async calls; gives `settle_escalation` a terminal state |
+| 2026-11-09 | Added `cancel_payout` (filer or DAO, Waiting only), `set_filing_deposit`, `get_lane`, `get_payout`; `escalate` also retries `needs_manual_filing` | Spec listed `Cancelled` with no method; deposit needs a setter; UI needs single lookups |
+| 2026-11-09 | Shared Rust types in `contracts/common` (`SetupConfig`, `LaneConfig`, `Filers`, `RecordStep`) | Factory and instance accept the same setup JSON |
+| 2026-11-09 | Ids and times are `U64` strings in JSON; amounts `U128` strings | JS number precision |
 
 ## Testnet log
 | Date | Action | Tx / account | By |

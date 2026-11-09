@@ -1,0 +1,10 @@
+[package]
+name = "nutus-common"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Types shared by the Nutus instance and factory contracts"
+
+[dependencies]
+near-sdk.workspace = true
