@@ -18,15 +18,18 @@ Create one in a wallet (e.g. MyNearWallet / Meteor on testnet) and fund it from 
 near account import-account using-web-wallet network-config testnet
 ```
 
-Budget roughly **30+ testnet NEAR**:
+Budget roughly **65 testnet NEAR**:
 
 | Item | NEAR |
 |:--|--:|
+| Global instance code (335 KB at ~10 NEAR / 100 KB, **burned**, not refundable) | ~34 |
 | 3 council accounts | 9 |
 | Test token account | 3 |
 | Factory account (sponsors USDC-path instances, 0.25 each) | 8 |
 | Sputnik DAO creation | 6 |
-| Global instance code | charged per byte, at a higher rate than a normal deploy; check the balance before/after and log it |
+| Gas and slack | ~5 |
+
+Global code is charged at 10× normal storage and burned (NEP-591). That's the one-off price of every instance costing ~0.25 NEAR instead of ~3.4 NEAR of locked code storage. Same trade-off on mainnet. Log the actual cost from the balance before and after.
 
 ## 2. Deploy
 

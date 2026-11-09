@@ -9,6 +9,8 @@
 # Usage: sh scripts/testnet-setup.sh      (after scripts/testnet-deploy.sh)
 set -eu
 cd "$(dirname "$0")/.."
+# Windows ships a python3 stub that only opens the Store; use whichever runs.
+if python3 -c "" 2>/dev/null; then PY=python3; else PY=python; fi
 . deployments/testnet.env
 NET="network-config testnet"
 SIGN="sign-with-keychain send"
@@ -18,7 +20,7 @@ C3=$(echo "$COUNCIL" | cut -d, -f3)
 INSTANCE="$(echo "$DAO" | cut -d. -f1).$FACTORY"
 BUDGET="${BUDGET:-5000000000}" # 5,000 tUSDC (6 decimals)
 
-KIND=$(python3 - "$TOKEN" "$INSTANCE" "$FACTORY" "$BUDGET" "$COUNCIL" <<'PY'
+KIND=$($PY - "$TOKEN" "$INSTANCE" "$FACTORY" "$BUDGET" "$COUNCIL" <<'PY'
 import base64, json, sys
 token, instance, factory, budget, council = sys.argv[1:]
 b64 = lambda o: base64.b64encode(json.dumps(o).encode()).decode()
@@ -43,9 +45,9 @@ PY
 )
 
 BOND=$(near contract call-function as-read-only "$DAO" get_policy json-args '{}' $NET now 2>/dev/null \
-  | python3 -c "import json,sys; t=sys.stdin.read(); print(json.loads(t[t.index('{'):])['proposal_bond'])")
+  | $PY -c "import json,sys; t=sys.stdin.read(); print(json.loads(t[t.index('{'):])['proposal_bond'])")
 echo "DAO proposal bond: $BOND yocto"
-BOND_NEAR=$(python3 -c "print(int('$BOND')/1e24)")
+BOND_NEAR=$($PY -c "print(int('$BOND')/1e24)")
 
 echo "== $C1 files the setup proposal"
 near contract call-function as-transaction "$DAO" add_proposal \
@@ -53,7 +55,7 @@ near contract call-function as-transaction "$DAO" add_proposal \
   prepaid-gas '50.0 Tgas' attached-deposit "$BOND_NEAR NEAR" sign-as "$C1" $NET $SIGN
 
 ID=$(near contract call-function as-read-only "$DAO" get_last_proposal_id json-args '{}' $NET now 2>/dev/null \
-  | python3 -c "import sys,re; print(int(re.findall(r'\d+', sys.stdin.read())[-1]) - 1)")
+  | $PY -c "import sys,re; print(int(re.findall(r'\d+', sys.stdin.read())[-1]) - 1)")
 echo "proposal id: $ID"
 
 for voter in "$C2" "$C3"; do

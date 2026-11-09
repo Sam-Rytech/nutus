@@ -2,7 +2,7 @@
 # Deploy Nutus to NEAR testnet: global instance code (by hash), factory, test
 # token, a Sputnik demo DAO with 3 council members, and test tokens for the DAO.
 #
-# Needs: near CLI (near-cli-rs), cargo-near, python3, and a funded testnet
+# Needs: near CLI (near-cli-rs), cargo-near, Python 3, and a funded testnet
 # account whose key is in your keychain:  near account import-account ...
 #
 # Usage:
@@ -17,6 +17,8 @@
 # Writes deployments/testnet.env for scripts/testnet-setup.sh.
 set -eu
 cd "$(dirname "$0")/.."
+# Windows ships a python3 stub that only opens the Store; use whichever runs.
+if python3 -c "" 2>/dev/null; then PY=python3; else PY=python; fi
 
 : "${DEPLOYER:?set DEPLOYER to your funded testnet account}"
 FACTORY="${FACTORY:-nutus.$DEPLOYER}"
@@ -35,7 +37,7 @@ INSTANCE_WASM=target/near/nutus_instance/nutus_instance.wasm
 FACTORY_WASM=target/near/nutus_factory/nutus_factory.wasm
 TOKEN_WASM=target/near/nutus_test_token/nutus_test_token.wasm
 
-HASH=$(python3 - "$INSTANCE_WASM" <<'PY'
+HASH=$($PY - "$INSTANCE_WASM" <<'PY'
 import hashlib, sys
 d = hashlib.sha256(open(sys.argv[1], "rb").read()).digest()
 a = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
@@ -57,7 +59,7 @@ if [ -z "${COUNCIL:-}" ]; then
       autogenerate-new-keypair save-to-keychain sign-as "$DEPLOYER" $NET $SIGN
   done
 fi
-COUNCIL_JSON=$(python3 -c "import json,sys; print(json.dumps(sys.argv[1].split(',')))" "$COUNCIL")
+COUNCIL_JSON=$($PY -c "import json,sys; print(json.dumps(sys.argv[1].split(',')))" "$COUNCIL")
 
 step "Create + deploy test token $TOKEN"
 near account create-account fund-myself "$TOKEN" '3 NEAR' \
@@ -74,7 +76,7 @@ near contract deploy "$FACTORY" use-file "$FACTORY_WASM" \
   prepaid-gas '30.0 Tgas' attached-deposit '0 NEAR' $NET $SIGN
 
 step "Create demo DAO $DAO (Sputnik v2, council: $COUNCIL)"
-ARGS=$(python3 -c "
+ARGS=$($PY -c "
 import base64, json, sys
 print(base64.b64encode(json.dumps({
   'config': {'name': sys.argv[1], 'purpose': 'Nutus testnet demo', 'metadata': ''},
