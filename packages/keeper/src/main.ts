@@ -17,7 +17,16 @@ const env = (k: string, d?: string) => {
 };
 
 const rpc = env("NEAR_RPC_URL", "https://rpc.testnet.near.org");
-const chain = nearChain(rpc, env("KEEPER_ACCOUNT_ID"), env("KEEPER_PRIVATE_KEY"));
+// Secrets pasted or piped often carry a trailing newline or CR.
+const key = env("KEEPER_PRIVATE_KEY").trim();
+if (!/^(ed25519|secp256k1):[1-9A-HJ-NP-Za-km-z]{40,}$/.test(key)) {
+  // Never print the key itself; its shape is enough to debug.
+  throw new Error(
+    `KEEPER_PRIVATE_KEY is not "<curve>:<base58>" (got ${key.length} chars, ` +
+      `prefix "${key.split(":")[0]?.slice(0, 10)}"). A full ed25519 key is about 96 chars.`,
+  );
+}
+const chain = nearChain(rpc, env("KEEPER_ACCOUNT_ID"), key);
 const explicit = (process.env.INSTANCES ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 const factory = process.env.FACTORY;
 const intervalMs = Number(env("INTERVAL_SEC", "60")) * 1000;
