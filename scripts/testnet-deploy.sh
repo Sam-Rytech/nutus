@@ -54,22 +54,26 @@ near contract deploy-as-global use-file "$INSTANCE_WASM" as-global-hash "$DEPLOY
 step "Create council accounts"
 if [ -z "${COUNCIL:-}" ]; then
   COUNCIL="c1.$DEPLOYER,c2.$DEPLOYER,c3.$DEPLOYER"
-  for c in c1 c2 c3; do
-    near account create-account fund-myself "$c.$DEPLOYER" '3 NEAR' \
+  # c1 files the setup proposal (pays the 1 NEAR bond, refunded on approval);
+  # c2 and c3 only vote, so they just need gas.
+  for c in "c1:1.5" "c2:0.3" "c3:0.3"; do
+    near account create-account fund-myself "${c%%:*}.$DEPLOYER" "${c#*:} NEAR" \
       autogenerate-new-keypair save-to-keychain sign-as "$DEPLOYER" $NET $SIGN
   done
 fi
 COUNCIL_JSON=$($PY -c "import json,sys; print(json.dumps(sys.argv[1].split(',')))" "$COUNCIL")
 
 step "Create + deploy test token $TOKEN"
-near account create-account fund-myself "$TOKEN" '3 NEAR' \
+# 152 KB of code = ~1.5 NEAR locked storage.
+near account create-account fund-myself "$TOKEN" '1.8 NEAR' \
   autogenerate-new-keypair save-to-keychain sign-as "$DEPLOYER" $NET $SIGN
 near contract deploy "$TOKEN" use-file "$TOKEN_WASM" \
   with-init-call new json-args '{"symbol":"tUSDC","decimals":6}' \
   prepaid-gas '30.0 Tgas' attached-deposit '0 NEAR' $NET $SIGN
 
 step "Create + deploy factory $FACTORY"
-near account create-account fund-myself "$FACTORY" '8 NEAR' \
+# 219 KB of code = ~2.2 NEAR locked, plus 0.25 NEAR per sponsored instance.
+near account create-account fund-myself "$FACTORY" '2.8 NEAR' \
   autogenerate-new-keypair save-to-keychain sign-as "$DEPLOYER" $NET $SIGN
 near contract deploy "$FACTORY" use-file "$FACTORY_WASM" \
   with-init-call new json-args "{\"instance_code_hash\":\"$HASH\",\"setup_tokens\":[\"$TOKEN\"],\"dao_factories\":[\"sputnikv2.testnet\"]}" \
