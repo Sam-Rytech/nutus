@@ -1,0 +1,18 @@
+[package]
+name = "nutus-test-token"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Test-only NEP-141 token (testnet demo + integration tests). Anyone can mint."
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-sdk.workspace = true
+near-contract-standards = "5"
+
+[dev-dependencies]
+near-sdk = { workspace = true, features = ["unit-testing"] }

@@ -18,7 +18,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | Planning and naming | AB | [x] done |
 | Interfaces frozen | A → B | [~] ABI committed; B to generate types.ts |
 | Instance contract | A | [x] every §4.5 method implemented; 80 unit tests. Integration tests (Phase 5) next |
-| Factory and setup | A | [~] interface, views |
+| Factory and setup | A | [~] factory done (NEAR + USDC paths, refunds, anti-drain); testnet deploy waiting on a funded account |
 | Contract tests | A | [ ] |
 | Keeper | A | [ ] |
 | Report port | B | [ ] |
@@ -83,10 +83,10 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 
 ## Phase 4: Factory and testnet
 **A**
-- [ ] Factory: global code by hash, `create` (NEAR path), `ft_on_transfer` setup (USDC path), refund on failure
-- [ ] Verify gas: create + global code + init + forward in one `ft_on_transfer` (else split)
-- [ ] Deploy global code, factory and test tokens to testnet — **H2/H3**
-- [ ] Testnet DAO with 3 council members (Sputnik v2)
+- [x] Factory: global code by hash, `create` (NEAR path), `ft_on_transfer` setup (USDC path), refund on failure (15 unit tests)
+- [~] Verify gas: create + global code + init + forward in one `ft_on_transfer` (else split) — `scripts/testnet-setup.sh` answers it on testnet
+- [~] Deploy global code, factory and test tokens to testnet — **H2/H3**. `scripts/testnet-deploy.sh` + `docs/TESTNET.md` ready; needs a funded testnet account (A)
+- [~] Testnet DAO with 3 council members (Sputnik v2) — created by `scripts/testnet-deploy.sh`
 
 **B**
 - [ ] Swap mocks for live testnet calls
@@ -130,10 +130,10 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | # | Question | Owner | Status |
 |:--|:--|:--|:--|
 | Q1 | Mainnet USDC/USDT storage deposit amount; auto-registration? | A | [ ] |
-| Q2 | Can one `ft_on_transfer` create, attach global code, init and forward within gas? | A | [ ] |
+| Q2 | Can one `ft_on_transfer` create, attach global code, init and forward within gas? | A | [~] budget ≈ 30 init + 90 callback + 50 forward + 10 TGas; run `scripts/testnet-setup.sh` (250 TGas) to confirm |
 | Q3 | How does Trezu display FunctionCall proposals to arbitrary contracts? | B | [ ] |
 | Q4 | Overlap with the four Social Money entries / Trezu roadmap? | AB | [ ] |
-| Q5 | Instance name = first label of the DAO account (`x.sputnik-dao.near` → `x.nutus.near`). Two DAOs with the same first label under different factories would collide; hash or full-name scheme? | A | [ ] |
+| Q5 | Instance name = first label of the DAO account (`x.sputnik-dao.near` → `x.nutus.near`). Two DAOs with the same first label under different factories would collide; hash or full-name scheme? | A | [x] Factory only accepts direct children of allow-listed DAO factories; a collision fails account creation and refunds the DAO |
 | Q6 | Native `cargo test` on Windows needs the aws-lc toolchain (via near-sdk → near-crypto) | A | [x] `AWS_LC_SYS_PREBUILT_NASM=1` (README) |
 
 ## Decisions log
@@ -165,6 +165,11 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | 2026-11-09 | `sync_council` = Group roles with `transfer:VoteApprove` (or a wildcard); token-weighted roles skipped; refuses to leave the council empty | Only Group roles can be listed; an empty council would block all objections |
 | 2026-11-09 | `settle_escalation`: Approved → record point; any other final status → `Settled{approved:false}`; `InProgress` refused | Sputnik `Failed` means approved but not executed, so not paid |
 | 2026-11-09 | Fixed: Sputnik `get_proposal` returns `id` as a JSON number; `Proposal` no longer reads it | Would have broken `settle_escalation` on chain; now covered by a JSON-shape test |
+| 2026-11-09 | Factory accepts setup only from allow-listed tokens and DAOs that are direct children of allow-listed DAO factories (fixed at init) | The USDC path spends the factory's NEAR (0.25 per instance); without this anyone could drain it with a junk token |
+| 2026-11-09 | No set-up fee: the factory sponsors USDC-path instance accounts; the NEAR path pays its own storage | Simpler and honest to pitch; revisit only if the factory runs low |
+| 2026-11-09 | Instance `new` is payable (NEAR path budget) and its `ft_on_transfer` also accepts `"fund"` from its own factory | The factory forwards the DAO's setup tokens; the factory's code is fixed by hash, so this adds no trust |
+| 2026-11-09 | Token-path setup: create batch → forward with `ft_transfer_call` → return what the instance didn't take | If any step fails, `ft_resolve_transfer` returns the tokens to the DAO |
+| 2026-11-09 | Test-only NEP-141 in `contracts/test-token` (anyone can mint) | Testnet demo and Phase 5 integration tests need a token we control |
 
 ## Testnet log
 | Date | Action | Tx / account | By |

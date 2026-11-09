@@ -163,7 +163,7 @@
       },
       {
         "name": "ft_on_transfer",
-        "doc": " NEP-141 receiver. Only the DAO may fund; anything else is refunded in full.\n `msg`: `\"fund\"` | `\"fund_standing:<id>\"`.",
+        "doc": " NEP-141 receiver. Only the DAO may fund (plus the factory forwarding the\n DAO's setup budget with `\"fund\"`); anything else is refunded in full.\n `msg`: `\"fund\"` | `\"fund_standing:<id>\"`.",
         "kind": "call",
         "params": {
           "serialization_type": "json",
@@ -473,10 +473,11 @@
       },
       {
         "name": "new",
-        "doc": " Called by the factory in the same batch that creates the account.\n `dao` is the token sender / caller seen by the factory, so it can't be spoofed.",
+        "doc": " Called by the factory in the same batch that creates the account.\n `dao` is the token sender / caller seen by the factory, so it can't be spoofed.\n NEAR attached here (the factory's NEAR setup path) becomes the `\"near\"` budget.",
         "kind": "call",
         "modifiers": [
-          "init"
+          "init",
+          "payable"
         ],
         "params": {
           "serialization_type": "json",

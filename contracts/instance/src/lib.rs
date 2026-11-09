@@ -88,7 +88,9 @@ impl Contract {
 
     /// Called by the factory in the same batch that creates the account.
     /// `dao` is the token sender / caller seen by the factory, so it can't be spoofed.
+    /// NEAR attached here (the factory's NEAR setup path) becomes the `"near"` budget.
     #[init]
+    #[payable]
     pub fn new(dao: AccountId, config: SetupConfig) -> Self {
         let mut this = Self {
             dao: dao.clone(),
@@ -123,6 +125,23 @@ impl Contract {
         .emit();
         for lane in config.lanes {
             this.internal_configure_lane(lane);
+        }
+        let budget = env::attached_deposit().as_yoctonear();
+        if budget > 0 {
+            let token = NEAR_TOKEN_ID.to_string();
+            this.put_book(
+                &token,
+                TokenBook {
+                    balance: U128(budget),
+                    ..Default::default()
+                },
+            );
+            NutusEvent::Funded {
+                token,
+                amount: U128(budget),
+                purpose: "setup".into(),
+            }
+            .emit();
         }
         this
     }
@@ -385,7 +404,8 @@ impl Contract {
         .emit();
     }
 
-    /// NEP-141 receiver. Only the DAO may fund; anything else is refunded in full.
+    /// NEP-141 receiver. Only the DAO may fund (plus the factory forwarding the
+    /// DAO's setup budget with `"fund"`); anything else is refunded in full.
     /// `msg`: `"fund"` | `"fund_standing:<id>"`.
     pub fn ft_on_transfer(
         &mut self,
@@ -394,7 +414,8 @@ impl Contract {
         msg: String,
     ) -> PromiseOrValue<U128> {
         let token: TokenId = env::predecessor_account_id().into();
-        if token == NEAR_TOKEN_ID || sender_id != self.dao || amount.0 == 0 {
+        let from_factory = sender_id == self.factory && msg == "fund";
+        if token == NEAR_TOKEN_ID || (sender_id != self.dao && !from_factory) || amount.0 == 0 {
             return PromiseOrValue::Value(amount);
         }
         let mut book = self.book(&token);

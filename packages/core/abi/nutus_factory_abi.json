@@ -12,7 +12,7 @@
       },
       {
         "name": "create",
-        "doc": " NEAR path: the DAO calls this in a FunctionCall proposal, attaching the\n budget plus storage. The caller becomes the instance's `dao`.",
+        "doc": " NEAR path. The caller (the DAO, via a FunctionCall proposal) becomes the\n instance's `dao`. Attach `instance_storage` + the NEAR budget; the budget\n lands in the instance's `\"near\"` book. Attach ≥ 150 TGas.",
         "kind": "call",
         "modifiers": [
           "payable"
@@ -37,7 +37,7 @@
       },
       {
         "name": "ft_on_transfer",
-        "doc": " USDC/USDT path: `ft_transfer_call(nutus.near, amount, \"setup:<SetupConfig json>\")`\n from the DAO. Returns the unused amount, so a failed setup refunds the DAO.",
+        "doc": " USDC/USDT path: `ft_transfer_call(nutus.near, amount, \"setup:<SetupConfig json>\")`\n from the DAO. Returns the unused amount, so any failure refunds the DAO.",
         "kind": "call",
         "params": {
           "serialization_type": "json",
@@ -77,6 +77,16 @@
           "serialization_type": "json",
           "type_schema": {
             "type": "string"
+          }
+        }
+      },
+      {
+        "name": "get_config",
+        "kind": "view",
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "$ref": "#/definitions/FactoryConfig"
           }
         }
       },
@@ -170,6 +180,7 @@
       },
       {
         "name": "new",
+        "doc": " All settings are fixed here; the factory has no admin methods.",
         "kind": "call",
         "modifiers": [
           "init"
@@ -182,12 +193,75 @@
               "type_schema": {
                 "type": "string"
               }
+            },
+            {
+              "name": "setup_tokens",
+              "type_schema": {
+                "type": "array",
+                "items": {
+                  "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "name": "dao_factories",
+              "type_schema": {
+                "type": "array",
+                "items": {
+                  "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "name": "instance_storage",
+              "type_schema": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
             }
           ]
         }
       },
       {
+        "name": "on_forwarded",
+        "doc": " `ft_transfer_call` returns how much the receiver used; hand the rest\n back to the original `ft_transfer_call` so it refunds the DAO.",
+        "kind": "call",
+        "modifiers": [
+          "private"
+        ],
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "amount",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "callbacks": [
+          {
+            "serialization_type": "json",
+            "type_schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "type": "string"
+          }
+        }
+      },
+      {
         "name": "on_instance_created",
+        "doc": " After the create batch. NEAR path: refund everything on failure.\n Token path: on success forward the tokens to the instance and return\n whatever it didn't take; on failure return the full amount.",
         "kind": "call",
         "modifiers": [
           "private"
@@ -231,7 +305,7 @@
         "result": {
           "serialization_type": "json",
           "type_schema": {
-            "type": "string"
+            "$ref": "#/definitions/PromiseOrValueString"
           }
         }
       }
@@ -241,6 +315,37 @@
       "title": "String",
       "type": "string",
       "definitions": {
+        "FactoryConfig": {
+          "type": "object",
+          "required": [
+            "dao_factories",
+            "instance_code_hash",
+            "instance_storage",
+            "setup_tokens"
+          ],
+          "properties": {
+            "dao_factories": {
+              "type": "array",
+              "items": {
+                "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                "type": "string"
+              }
+            },
+            "instance_code_hash": {
+              "type": "string"
+            },
+            "instance_storage": {
+              "type": "string"
+            },
+            "setup_tokens": {
+              "type": "array",
+              "items": {
+                "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                "type": "string"
+              }
+            }
+          }
+        },
         "Filers": {
           "description": "Who may call `file_payout` on a lane.",
           "oneOf": [

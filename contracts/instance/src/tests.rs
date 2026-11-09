@@ -1438,3 +1438,31 @@ fn writes_sputnik_add_proposal_args() {
             "token_id": "", "receiver_id": "carol.near", "amount": "50", "msg": null}}}})
     );
 }
+
+// ────────────────────────── setup funding ──────────────────────────
+
+#[test]
+fn init_books_attached_near_as_budget() {
+    call("nutus.near", 2 * ONE_NEAR, T0);
+    let c = Contract::new(acc(DAO), SetupConfig::default());
+    assert_eq!(
+        c.book(&NEAR_TOKEN_ID.to_string()).balance,
+        U128(2 * ONE_NEAR)
+    );
+    assert!(has_event("funded"));
+}
+
+#[test]
+fn factory_may_forward_setup_budget_only_as_fund() {
+    let mut c = setup();
+    call(USDC, 0, T0);
+    assert_eq!(
+        value(c.ft_on_transfer(acc("nutus.near"), U128(500), "fund".into())),
+        0
+    );
+    assert_eq!(usdc(&c).balance, U128(10_500));
+    let id = add_standing(&mut c, 0, None);
+    call(USDC, 0, T0);
+    let msg = format!("fund_standing:{}", id.0);
+    assert_eq!(value(c.ft_on_transfer(acc("nutus.near"), U128(5), msg)), 5);
+}
