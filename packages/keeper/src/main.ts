@@ -20,10 +20,12 @@ const rpc = env("NEAR_RPC_URL", "https://rpc.testnet.near.org");
 // Secrets pasted or piped often carry a trailing newline or CR.
 const key = env("KEEPER_PRIVATE_KEY").trim();
 if (!/^(ed25519|secp256k1):[1-9A-HJ-NP-Za-km-z]{40,}$/.test(key)) {
-  // Never print the key itself; its shape is enough to debug.
+  // Never print any part of the key: only its length and whether it starts
+  // with a known curve name (GitHub masks the whole secret, not fragments).
+  const curve = ["ed25519:", "secp256k1:"].find((c) => key.startsWith(c)) ?? "no known curve prefix";
   throw new Error(
-    `KEEPER_PRIVATE_KEY is not "<curve>:<base58>" (got ${key.length} chars, ` +
-      `prefix "${key.split(":")[0]?.slice(0, 10)}"). A full ed25519 key is about 96 chars.`,
+    `KEEPER_PRIVATE_KEY is not "<curve>:<base58>" (${key.length} chars, ${curve}). ` +
+      `A full ed25519 key is about 96 chars.`,
   );
 }
 const chain = nearChain(rpc, env("KEEPER_ACCOUNT_ID"), key);
