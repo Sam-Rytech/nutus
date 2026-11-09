@@ -140,7 +140,7 @@ add_standing ──► Active ── pay_due (from standing_buffer) ──► Ac
 | DAO only | `configure_lane`, `remove_lane`, `set_record_steps(lane_id, steps)`, `seed_records`, `add_standing`, `stop_standing`, `pause`, `unpause`, `withdraw`, `set_bond_float`, `set_filing_deposit`, `fund_near`; funding through `ft_on_transfer` |
 | Council member | `object`, `approve` |
 | Permitted filer | `file_payout` (payable anti-spam deposit), `cancel_payout` (filer or DAO, Waiting only) |
-| Anyone | `release`, `escalate` (Medium timeout, or retry of `needs_manual_filing`), `pay_due`, `sync_council`, `settle_escalation` |
+| Anyone | `fund_bond_float` (payable), `release`, `escalate` (Medium timeout, or retry of `needs_manual_filing`), `pay_due`, `sync_council`, `settle_escalation` |
 | Views | `get_config`, `get_lanes`, `get_lane`, `get_payout`, `get_payouts`, `get_standing`, `get_record`, `get_token_books`, `get_period_usage` |
 
 ### 4.6 Events (NEP-297, `standard: "nutus"`, `version: "1.0.0"`)

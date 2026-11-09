@@ -17,7 +17,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 |:--|:--|:--|
 | Planning and naming | AB | [x] done |
 | Interfaces frozen | A → B | [~] ABI committed; B to generate types.ts |
-| Instance contract | A | [~] interface, views, pause |
+| Instance contract | A | [~] Phase 2 done (funding, lanes, filing, release, approve, object → escalation, cancel, withdraw); Phase 3 next |
 | Factory and setup | A | [~] interface, views |
 | Contract tests | A | [ ] |
 | Keeper | A | [ ] |
@@ -51,15 +51,15 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 
 ## Phase 2: Core build (in parallel)
 **A: Instance contract**
-- [ ] State, TokenBook, I1 accounting helpers
-- [ ] Funding: `ft_on_transfer` (DAO-only), `fund_near`
-- [ ] Lanes: `configure_lane`, `remove_lane`, period cap and reset
-- [ ] `file_payout`: tier check, record step, cap, reserve, anti-spam deposit
-- [ ] Release path: `release`, recipient storage registration, `ft_transfer` / NEAR, `on_sent` callback (Paid / Failed, budget restored)
-- [ ] `object` (window, objectors, silent-can-object), `approve` (Medium)
-- [ ] `pause` / `unpause`, `withdraw` (I2), `set_bond_float`
-- [ ] Views
-- [ ] Unit tests for each
+- [x] State, TokenBook, I1 accounting helpers (`put_book` checks I1 on every write)
+- [x] Funding: `ft_on_transfer` (DAO-only; `fund`, `fund_standing:<id>`), `fund_near`, `fund_bond_float`
+- [x] Lanes: `configure_lane`, `remove_lane`, period cap and reset
+- [x] `file_payout`: tier check, record step, cap, reserve, anti-spam deposit (payout storage paid from it)
+- [x] Release path: `release`, recipient storage registration, `ft_transfer` / NEAR, `on_sent` callback (Paid / Failed, budget restored)
+- [x] `object` (window, objectors), `approve` (Medium). `silent_can_object` is advisory only (see decisions)
+- [x] `pause` / `unpause`, `withdraw` (I2), `set_bond_float`
+- [x] Views
+- [x] Unit tests for each (52 in `contracts/instance/src/tests.rs`)
 
 **B: Report and core**
 - [ ] RPC reader: `get_proposals` paging, `get_policy`, SQLite cache
@@ -70,8 +70,8 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 
 ## Phase 3: Escalation, standing, records
 **A**
-- [ ] Escalation: `get_policy` → bond → `add_proposal(Transfer)` → `Escalated`; `needs_manual_filing` fallback
-- [ ] `escalate` (Medium timeout)
+- [x] Escalation: `get_policy` → bond → `add_proposal(Transfer)` → `Escalated`; `needs_manual_filing` fallback (done early, with Phase 2)
+- [x] `escalate` (Medium timeout, and retry of `needs_manual_filing`)
 - [ ] Standing: `add_standing`, `fund_standing:<id>`, `pay_due`, `stop_standing`, notice from committed money, `standing_short`
 - [ ] Records: `set_record_steps`, `seed_records`, `settle_escalation`, objection cooldown
 - [ ] `sync_council` from DAO policy
@@ -152,6 +152,13 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | 2026-11-09 | Added `cancel_payout` (filer or DAO, Waiting only), `set_filing_deposit`, `get_lane`, `get_payout`; `escalate` also retries `needs_manual_filing` | Spec listed `Cancelled` with no method; deposit needs a setter; UI needs single lookups |
 | 2026-11-09 | Shared Rust types in `contracts/common` (`SetupConfig`, `LaneConfig`, `Filers`, `RecordStep`) | Factory and instance accept the same setup JSON |
 | 2026-11-09 | Ids and times are `U64` strings in JSON; amounts `U128` strings | JS number precision |
+| 2026-11-09 | Bond float = **spare NEAR** (balance − storage − NEAR budget − held deposits), not a stored counter. `set_bond_float` sets a warning target; anyone tops up with `fund_bond_float` | Sputnik returns bonds as plain transfers with no callback, so a counter would drift |
+| 2026-11-09 | `silent_can_object` stored but not enforced on chain | Seat silence is computed off-chain; enforcing it would need an oracle |
+| 2026-11-09 | Payout stores `deadline_ns` at filing | Changing a lane's window later can't move an existing deadline |
+| 2026-11-09 | During the 90-day objection cooldown the record step uses `jobs_at_last_objection` | "Step-ups pause" without stepping anyone down |
+| 2026-11-09 | Filing deposit pays the payout's own storage; the rest is refunded on Paid / Failed / Escalated / Cancelled (minus 0.00125 NEAR token registration on a Paid FT payout) | Storage stays staked after a payout closes |
+| 2026-11-09 | Release sends `storage_deposit` + `ft_transfer` as one atomic batch | A failed transfer reverts the registration too, so the full deposit can be refunded |
+| 2026-11-09 | A Small payout above the recipient's record step becomes Medium, not a panic | Spec §3.7: Small = ≤ min(small_max, record step) |
 
 ## Testnet log
 | Date | Action | Tx / account | By |

@@ -52,7 +52,7 @@
       },
       {
         "name": "cancel_payout",
-        "doc": " The filer or the DAO may withdraw a Waiting payout; the deposit is refunded.",
+        "doc": " The filer or the DAO may withdraw a Waiting payout; the DAO may also\n close an Objected one (e.g. after filing it by hand). Deposit refunded.",
         "kind": "call",
         "params": {
           "serialization_type": "json",
@@ -68,6 +68,7 @@
       },
       {
         "name": "configure_lane",
+        "doc": " Adds or replaces a lane. Replacing keeps the period counters; the token\n can only change while the lane has no open payouts.",
         "kind": "call",
         "params": {
           "serialization_type": "json",
@@ -87,7 +88,7 @@
       },
       {
         "name": "escalate",
-        "doc": " Medium past its timeout, or an Objected payout with `needs_manual_filing`\n (retry after the bond float is topped up) → files the DAO proposal.",
+        "doc": " Medium past its timeout, or an Objected payout with `needs_manual_filing`\n (retry after the bond float is topped up) → files the DAO proposal.\n Attach ≥ 150 TGas.",
         "kind": "call",
         "params": {
           "serialization_type": "json",
@@ -109,7 +110,7 @@
       },
       {
         "name": "file_payout",
-        "doc": " Attach at least `filing_deposit`. Panics `USE_FULL_VOTE` above `medium_max`.",
+        "doc": " Attach at least `filing_deposit`. Small if `amount ≤ min(small_max,\n record step)`, Medium if `≤ medium_max`, otherwise panics `USE_FULL_VOTE`.\n The payout's own storage is paid from the deposit; the rest is refunded\n when the payout reaches a final state.",
         "kind": "call",
         "modifiers": [
           "payable"
@@ -196,8 +197,16 @@
         }
       },
       {
+        "name": "fund_bond_float",
+        "doc": " Anyone may top up the spare NEAR used for escalation bonds. It is not\n part of any token book, so it can't be paid out to contributors.",
+        "kind": "call",
+        "modifiers": [
+          "payable"
+        ]
+      },
+      {
         "name": "fund_near",
-        "doc": " Adds the attached NEAR to the `\"near\"` token book.",
+        "doc": " Adds the attached NEAR to the `\"near\"` payout budget.",
         "kind": "call",
         "modifiers": [
           "payable"
@@ -336,6 +345,7 @@
       },
       {
         "name": "get_period_usage",
+        "doc": " Usage as of now: a period that has already ended reads as empty.",
         "kind": "view",
         "params": {
           "serialization_type": "json",
@@ -444,7 +454,7 @@
       },
       {
         "name": "new",
-        "doc": " Called by the factory right after the account is created.\n `dao` is the token sender / caller seen by the factory, so it can't be spoofed.",
+        "doc": " Called by the factory in the same batch that creates the account.\n `dao` is the token sender / caller seen by the factory, so it can't be spoofed.",
         "kind": "call",
         "modifiers": [
           "init"
@@ -470,7 +480,7 @@
       },
       {
         "name": "object",
-        "doc": " Small payouts only, inside the window, by an objector. Starts escalation.",
+        "doc": " Small payouts only, inside the window, by an objector. Files the payout\n as a normal DAO proposal (escalation). Attach ≥ 150 TGas.\n\n `silent_can_object` is advisory: seat silence is computed off-chain by\n seat watch, so the contract lets every listed objector object.",
         "kind": "call",
         "params": {
           "serialization_type": "json",
@@ -619,15 +629,7 @@
               }
             }
           ]
-        },
-        "callbacks": [
-          {
-            "serialization_type": "json",
-            "type_schema": {
-              "type": "null"
-            }
-          }
-        ]
+        }
       },
       {
         "name": "on_standing_sent",
@@ -665,15 +667,7 @@
               }
             }
           ]
-        },
-        "callbacks": [
-          {
-            "serialization_type": "json",
-            "type_schema": {
-              "type": "null"
-            }
-          }
-        ]
+        }
       },
       {
         "name": "on_withdrawn",
@@ -704,18 +698,11 @@
               }
             }
           ]
-        },
-        "callbacks": [
-          {
-            "serialization_type": "json",
-            "type_schema": {
-              "type": "null"
-            }
-          }
-        ]
+        }
       },
       {
         "name": "pause",
+        "doc": " While paused: no new filings, releases or approvals. Objections,\n escalation, cancel and withdraw still work.",
         "kind": "call"
       },
       {
@@ -771,7 +758,7 @@
       },
       {
         "name": "remove_lane",
-        "doc": " Fails while the lane has Waiting payouts.",
+        "doc": " Fails while the lane has open payouts.",
         "kind": "call",
         "params": {
           "serialization_type": "json",
@@ -805,7 +792,7 @@
       },
       {
         "name": "set_bond_float",
-        "doc": " Sets how much of the instance's NEAR is kept aside for escalation bonds.",
+        "doc": " Spare NEAR the DAO wants kept for escalation bonds. A threshold for\n warnings; send NEAR with `fund_bond_float` to actually top it up.",
         "kind": "call",
         "params": {
           "serialization_type": "json",
@@ -914,7 +901,7 @@
       },
       {
         "name": "withdraw",
-        "doc": " Only from `available` (I2: committed notice is untouchable, even by the DAO).",
+        "doc": " Only from `available` (I2: reserved money and committed notice are\n untouchable, even by the DAO). `to` defaults to the DAO.",
         "kind": "call",
         "params": {
           "serialization_type": "json",
@@ -959,7 +946,8 @@
         "ConfigView": {
           "type": "object",
           "required": [
-            "bond_float",
+            "bond_float_available",
+            "bond_float_target",
             "council",
             "dao",
             "factory",
@@ -971,7 +959,12 @@
             "version"
           ],
           "properties": {
-            "bond_float": {
+            "bond_float_available": {
+              "description": "Spare NEAR right now: account balance − storage − NEAR budget − held deposits. Escalation needs this to be ≥ the DAO's proposal bond.",
+              "type": "string"
+            },
+            "bond_float_target": {
+              "description": "NEAR the DAO wants kept spare for escalation bonds (a warning threshold).",
               "type": "string"
             },
             "council": {
@@ -1058,6 +1051,7 @@
             "medium_max",
             "medium_timeout_ns",
             "name",
+            "open_payouts",
             "period_cap",
             "period_ns",
             "period_start_ns",
@@ -1093,6 +1087,12 @@
                 "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
                 "type": "string"
               }
+            },
+            "open_payouts": {
+              "description": "Payouts not yet final (Waiting, Escalating, Objected, Sending). A lane can't be removed or change token while this is non-zero.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
             },
             "period_cap": {
               "type": "string"
@@ -1215,6 +1215,7 @@
           "type": "object",
           "required": [
             "amount",
+            "deadline_ns",
             "deposit",
             "filed_at_ns",
             "filer",
@@ -1237,8 +1238,12 @@
                 "null"
               ]
             },
+            "deadline_ns": {
+              "description": "Small: end of the objection window. Medium: when `escalate` opens. Fixed at filing, so later lane changes can't move it.",
+              "type": "string"
+            },
             "deposit": {
-              "description": "Anti-spam deposit (yoctoNEAR). Pays recipient storage registration; the remainder is refunded to the filer.",
+              "description": "Refundable part of the anti-spam deposit (yoctoNEAR), after this payout's own storage cost. Pays recipient token registration on release; the rest goes back to the filer when the payout reaches a final state.",
               "type": "string"
             },
             "filed_at_ns": {
@@ -1530,10 +1535,17 @@
         "Record": {
           "type": "object",
           "required": [
+            "jobs_at_last_objection",
             "paid_jobs",
             "sources"
           ],
           "properties": {
+            "jobs_at_last_objection": {
+              "description": "`paid_jobs` when the last objection landed. During the cooldown the record step is computed from this, so step-ups pause.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
             "last_objection_ns": {
               "type": [
                 "string",

@@ -16,6 +16,7 @@ pub enum StorageKey {
     Payouts,
     Standing,
     Records,
+    RoleMembers,
 }
 
 /// Per-token accounting. `available = balance − reserved − committed_notice − standing_buffer`.
@@ -59,6 +60,9 @@ pub struct Lane {
     pub record_steps: Vec<RecordStep>,
     pub period_start_ns: U64,
     pub spent_this_period: U128,
+    /// Payouts not yet final (Waiting, Escalating, Objected, Sending).
+    /// A lane can't be removed or change token while this is non-zero.
+    pub open_payouts: u32,
 }
 
 #[near(serializers = [json])]
@@ -158,8 +162,12 @@ pub struct Payout {
     pub memo: Option<String>,
     pub tier: Tier,
     pub filed_at_ns: U64,
-    /// Anti-spam deposit (yoctoNEAR). Pays recipient storage registration;
-    /// the remainder is refunded to the filer.
+    /// Small: end of the objection window. Medium: when `escalate` opens.
+    /// Fixed at filing, so later lane changes can't move it.
+    pub deadline_ns: U64,
+    /// Refundable part of the anti-spam deposit (yoctoNEAR), after this payout's
+    /// own storage cost. Pays recipient token registration on release; the rest
+    /// goes back to the filer when the payout reaches a final state.
     pub deposit: U128,
     pub approved_by: Option<AccountId>,
     pub status: PayoutStatus,
@@ -225,6 +233,9 @@ pub enum SourceRef {
 pub struct Record {
     pub paid_jobs: u32,
     pub last_objection_ns: Option<U64>,
+    /// `paid_jobs` when the last objection landed. During the cooldown the
+    /// record step is computed from this, so step-ups pause.
+    pub jobs_at_last_objection: u32,
     pub sources: Vec<SourceRef>,
 }
 
@@ -243,7 +254,11 @@ pub struct ConfigView {
     pub factory: AccountId,
     pub paused: bool,
     pub council: Vec<AccountId>,
-    pub bond_float: U128,
+    /// NEAR the DAO wants kept spare for escalation bonds (a warning threshold).
+    pub bond_float_target: U128,
+    /// Spare NEAR right now: account balance − storage − NEAR budget − held deposits.
+    /// Escalation needs this to be ≥ the DAO's proposal bond.
+    pub bond_float_available: U128,
     pub filing_deposit: U128,
     pub objection_cooldown_ns: U64,
     pub next_payout_id: U64,
