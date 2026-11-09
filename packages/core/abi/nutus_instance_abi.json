@@ -1,0 +1,1934 @@
+{
+  "schema_version": "0.4.0",
+  "metadata": {
+    "name": "nutus-instance",
+    "version": "0.1.0"
+  },
+  "body": {
+    "functions": [
+      {
+        "name": "add_standing",
+        "doc": " Locks `amount × notice_periods` into committed notice. Returns the new id.",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "standing",
+              "type_schema": {
+                "$ref": "#/definitions/StandingInput"
+              }
+            }
+          ]
+        },
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "type": "string"
+          }
+        }
+      },
+      {
+        "name": "approve",
+        "doc": " Medium payouts only. The first approval releases the payout.",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "payout_id",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "$ref": "#/definitions/Promise"
+          }
+        }
+      },
+      {
+        "name": "cancel_payout",
+        "doc": " The filer or the DAO may withdraw a Waiting payout; the deposit is refunded.",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "payout_id",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "configure_lane",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "lane",
+              "type_schema": {
+                "$ref": "#/definitions/LaneConfig"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "contract_source_metadata",
+        "kind": "view"
+      },
+      {
+        "name": "escalate",
+        "doc": " Medium past its timeout, or an Objected payout with `needs_manual_filing`\n (retry after the bond float is topped up) → files the DAO proposal.",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "payout_id",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "$ref": "#/definitions/Promise"
+          }
+        }
+      },
+      {
+        "name": "file_payout",
+        "doc": " Attach at least `filing_deposit`. Panics `USE_FULL_VOTE` above `medium_max`.",
+        "kind": "call",
+        "modifiers": [
+          "payable"
+        ],
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "lane_id",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "recipient",
+              "type_schema": {
+                "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                "type": "string"
+              }
+            },
+            {
+              "name": "amount",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "link",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "memo",
+              "type_schema": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          ]
+        },
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "type": "string"
+          }
+        }
+      },
+      {
+        "name": "ft_on_transfer",
+        "doc": " NEP-141 receiver. Only the DAO may fund; anything else is refunded in full.\n `msg`: `\"fund\"` | `\"fund_standing:<id>\"`.",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "sender_id",
+              "type_schema": {
+                "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                "type": "string"
+              }
+            },
+            {
+              "name": "amount",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "msg",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "$ref": "#/definitions/PromiseOrValueString"
+          }
+        }
+      },
+      {
+        "name": "fund_near",
+        "doc": " Adds the attached NEAR to the `\"near\"` token book.",
+        "kind": "call",
+        "modifiers": [
+          "payable"
+        ]
+      },
+      {
+        "name": "get_config",
+        "kind": "view",
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "$ref": "#/definitions/ConfigView"
+          }
+        }
+      },
+      {
+        "name": "get_lane",
+        "kind": "view",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "lane_id",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Lane"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "get_lanes",
+        "kind": "view",
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/Lane"
+            }
+          }
+        }
+      },
+      {
+        "name": "get_payout",
+        "kind": "view",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "payout_id",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Payout"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "get_payouts",
+        "doc": " Ascending by id from `from_index`; `limit` defaults to 50.",
+        "kind": "view",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "from_index",
+              "type_schema": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            {
+              "name": "limit",
+              "type_schema": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            {
+              "name": "status",
+              "type_schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/PayoutStatusKind"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/Payout"
+            }
+          }
+        }
+      },
+      {
+        "name": "get_period_usage",
+        "kind": "view",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "lane_id",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/PeriodUsage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "get_record",
+        "kind": "view",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "account_id",
+              "type_schema": {
+                "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Record"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "get_standing",
+        "kind": "view",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "from_index",
+              "type_schema": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            {
+              "name": "limit",
+              "type_schema": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            }
+          ]
+        },
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/Standing"
+            }
+          }
+        }
+      },
+      {
+        "name": "get_token_books",
+        "kind": "view",
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/TokenBookView"
+            }
+          }
+        }
+      },
+      {
+        "name": "new",
+        "doc": " Called by the factory right after the account is created.\n `dao` is the token sender / caller seen by the factory, so it can't be spoofed.",
+        "kind": "call",
+        "modifiers": [
+          "init"
+        ],
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "dao",
+              "type_schema": {
+                "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                "type": "string"
+              }
+            },
+            {
+              "name": "config",
+              "type_schema": {
+                "$ref": "#/definitions/SetupConfig"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "object",
+        "doc": " Small payouts only, inside the window, by an objector. Starts escalation.",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "payout_id",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "reason",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "$ref": "#/definitions/Promise"
+          }
+        }
+      },
+      {
+        "name": "on_council_policy",
+        "kind": "call",
+        "modifiers": [
+          "private"
+        ],
+        "callbacks": [
+          {
+            "serialization_type": "json",
+            "type_schema": {
+              "$ref": "#/definitions/Policy"
+            }
+          }
+        ]
+      },
+      {
+        "name": "on_escalation_proposal",
+        "kind": "call",
+        "modifiers": [
+          "private"
+        ],
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "payout_id",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "callbacks": [
+          {
+            "serialization_type": "json",
+            "type_schema": {
+              "$ref": "#/definitions/Proposal"
+            }
+          }
+        ]
+      },
+      {
+        "name": "on_policy_for_escalation",
+        "kind": "call",
+        "modifiers": [
+          "private"
+        ],
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "payout_id",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "callbacks": [
+          {
+            "serialization_type": "json",
+            "type_schema": {
+              "$ref": "#/definitions/Policy"
+            }
+          }
+        ],
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "$ref": "#/definitions/PromiseOrValueNull"
+          }
+        }
+      },
+      {
+        "name": "on_proposal_added",
+        "kind": "call",
+        "modifiers": [
+          "private"
+        ],
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "payout_id",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "bond",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "callbacks": [
+          {
+            "serialization_type": "json",
+            "type_schema": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          }
+        ]
+      },
+      {
+        "name": "on_sent",
+        "kind": "call",
+        "modifiers": [
+          "private"
+        ],
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "payout_id",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "callbacks": [
+          {
+            "serialization_type": "json",
+            "type_schema": {
+              "type": "null"
+            }
+          }
+        ]
+      },
+      {
+        "name": "on_standing_sent",
+        "kind": "call",
+        "modifiers": [
+          "private"
+        ],
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "standing_id",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "periods",
+              "type_schema": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            {
+              "name": "amount",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "from_notice",
+              "type_schema": {
+                "type": "boolean"
+              }
+            }
+          ]
+        },
+        "callbacks": [
+          {
+            "serialization_type": "json",
+            "type_schema": {
+              "type": "null"
+            }
+          }
+        ]
+      },
+      {
+        "name": "on_withdrawn",
+        "kind": "call",
+        "modifiers": [
+          "private"
+        ],
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "token",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "amount",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "to",
+              "type_schema": {
+                "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "callbacks": [
+          {
+            "serialization_type": "json",
+            "type_schema": {
+              "type": "null"
+            }
+          }
+        ]
+      },
+      {
+        "name": "pause",
+        "kind": "call"
+      },
+      {
+        "name": "pay_due",
+        "doc": " Pays every due period up to now. Returns `None` when nothing is due.",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "standing_id",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Promise"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "release",
+        "doc": " Small, Waiting, window passed → Sending → transfer → `on_sent`.",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "payout_id",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "$ref": "#/definitions/Promise"
+          }
+        }
+      },
+      {
+        "name": "remove_lane",
+        "doc": " Fails while the lane has Waiting payouts.",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "lane_id",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "seed_records",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "entries",
+              "type_schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/SeedEntry"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "set_bond_float",
+        "doc": " Sets how much of the instance's NEAR is kept aside for escalation bonds.",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "amount",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "set_filing_deposit",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "amount",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "set_record_steps",
+        "doc": " Per lane, because steps are in that lane's token units.",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "lane_id",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "steps",
+              "type_schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/RecordStep"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "settle_escalation",
+        "doc": " Reads the escalated proposal; records a point if Approved.",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "payout_id",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "$ref": "#/definitions/Promise"
+          }
+        }
+      },
+      {
+        "name": "stop_standing",
+        "doc": " Starts the notice period; remaining payments come from committed notice.",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "standing_id",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "sync_council",
+        "doc": " Reads the DAO policy; council = members of roles with `transfer:VoteApprove`.",
+        "kind": "call",
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "$ref": "#/definitions/Promise"
+          }
+        }
+      },
+      {
+        "name": "unpause",
+        "kind": "call"
+      },
+      {
+        "name": "withdraw",
+        "doc": " Only from `available` (I2: committed notice is untouchable, even by the DAO).",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "token",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "amount",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "to",
+              "type_schema": {
+                "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          ]
+        },
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "$ref": "#/definitions/Promise"
+          }
+        }
+      }
+    ],
+    "root_schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "String",
+      "type": "string",
+      "definitions": {
+        "ConfigView": {
+          "type": "object",
+          "required": [
+            "bond_float",
+            "council",
+            "dao",
+            "factory",
+            "filing_deposit",
+            "next_payout_id",
+            "next_standing_id",
+            "objection_cooldown_ns",
+            "paused",
+            "version"
+          ],
+          "properties": {
+            "bond_float": {
+              "type": "string"
+            },
+            "council": {
+              "type": "array",
+              "items": {
+                "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                "type": "string"
+              }
+            },
+            "dao": {
+              "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+              "type": "string"
+            },
+            "factory": {
+              "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+              "type": "string"
+            },
+            "filing_deposit": {
+              "type": "string"
+            },
+            "next_payout_id": {
+              "type": "string"
+            },
+            "next_standing_id": {
+              "type": "string"
+            },
+            "objection_cooldown_ns": {
+              "type": "string"
+            },
+            "paused": {
+              "type": "boolean"
+            },
+            "version": {
+              "type": "string"
+            }
+          }
+        },
+        "Filers": {
+          "description": "Who may call `file_payout` on a lane.",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "Anyone"
+              ]
+            },
+            {
+              "type": "object",
+              "required": [
+                "Members"
+              ],
+              "properties": {
+                "Members": {
+                  "type": "array",
+                  "items": {
+                    "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Members of this role in the DAO policy (refreshed by `sync_council`).",
+              "type": "object",
+              "required": [
+                "DaoMembersOfRole"
+              ],
+              "properties": {
+                "DaoMembersOfRole": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "Lane": {
+          "description": "A lane with defaults resolved and its period counters.",
+          "type": "object",
+          "required": [
+            "filers",
+            "id",
+            "medium_max",
+            "medium_timeout_ns",
+            "name",
+            "period_cap",
+            "period_ns",
+            "period_start_ns",
+            "record_steps",
+            "silent_can_object",
+            "small_max",
+            "spent_this_period",
+            "token",
+            "window_ns"
+          ],
+          "properties": {
+            "filers": {
+              "$ref": "#/definitions/Filers"
+            },
+            "id": {
+              "type": "string"
+            },
+            "medium_max": {
+              "type": "string"
+            },
+            "medium_timeout_ns": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "objectors": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                "type": "string"
+              }
+            },
+            "period_cap": {
+              "type": "string"
+            },
+            "period_ns": {
+              "type": "string"
+            },
+            "period_start_ns": {
+              "type": "string"
+            },
+            "record_steps": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/RecordStep"
+              }
+            },
+            "silent_can_object": {
+              "type": "boolean"
+            },
+            "small_max": {
+              "type": "string"
+            },
+            "spent_this_period": {
+              "type": "string"
+            },
+            "token": {
+              "type": "string"
+            },
+            "window_ns": {
+              "type": "string"
+            }
+          }
+        },
+        "LaneConfig": {
+          "description": "Lane as the DAO submits it. Optional fields take the defaults above.",
+          "type": "object",
+          "required": [
+            "filers",
+            "id",
+            "medium_max",
+            "name",
+            "period_cap",
+            "small_max",
+            "token"
+          ],
+          "properties": {
+            "filers": {
+              "$ref": "#/definitions/Filers"
+            },
+            "id": {
+              "type": "string"
+            },
+            "medium_max": {
+              "description": "Medium: small_max < amount ≤ medium_max. Above → full DAO vote.",
+              "type": "string"
+            },
+            "medium_timeout_ns": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "name": {
+              "type": "string"
+            },
+            "objectors": {
+              "description": "`None` = the whole council may object / approve.",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                "type": "string"
+              }
+            },
+            "period_cap": {
+              "description": "Total Small + Medium payouts allowed per period.",
+              "type": "string"
+            },
+            "period_ns": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "record_steps": {
+              "description": "Track-record ladder for this lane. Empty = no record limit.",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/definitions/RecordStep"
+              }
+            },
+            "silent_can_object": {
+              "description": "Whether council seats flagged silent may still object. Default true.",
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "small_max": {
+              "description": "Small: amount ≤ small_max (and ≤ the recipient's record step).",
+              "type": "string"
+            },
+            "token": {
+              "type": "string"
+            },
+            "window_ns": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "Payout": {
+          "type": "object",
+          "required": [
+            "amount",
+            "deposit",
+            "filed_at_ns",
+            "filer",
+            "id",
+            "lane",
+            "link",
+            "recipient",
+            "status",
+            "tier",
+            "token"
+          ],
+          "properties": {
+            "amount": {
+              "type": "string"
+            },
+            "approved_by": {
+              "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "deposit": {
+              "description": "Anti-spam deposit (yoctoNEAR). Pays recipient storage registration; the remainder is refunded to the filer.",
+              "type": "string"
+            },
+            "filed_at_ns": {
+              "type": "string"
+            },
+            "filer": {
+              "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "lane": {
+              "type": "string"
+            },
+            "link": {
+              "type": "string"
+            },
+            "memo": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "recipient": {
+              "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+              "type": "string"
+            },
+            "status": {
+              "$ref": "#/definitions/PayoutStatus"
+            },
+            "tier": {
+              "$ref": "#/definitions/Tier"
+            },
+            "token": {
+              "type": "string"
+            }
+          }
+        },
+        "PayoutStatus": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "Paid",
+                "Cancelled"
+              ]
+            },
+            {
+              "description": "Small: inside its objection window. Medium: waiting for an approver.",
+              "type": "string",
+              "enum": [
+                "Waiting"
+              ]
+            },
+            {
+              "description": "Escalation is in flight (async `get_policy` → `add_proposal`).",
+              "type": "object",
+              "required": [
+                "Escalating"
+              ],
+              "properties": {
+                "Escalating": {
+                  "type": "object",
+                  "properties": {
+                    "objected_by": {
+                      "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "reason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Objected, but the DAO proposal could not be filed (bond float short or AddProposal not permitted). Amount stays reserved until `escalate` retries.",
+              "type": "object",
+              "required": [
+                "Objected"
+              ],
+              "properties": {
+                "Objected": {
+                  "type": "object",
+                  "required": [
+                    "by",
+                    "needs_manual_filing",
+                    "reason"
+                  ],
+                  "properties": {
+                    "by": {
+                      "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                      "type": "string"
+                    },
+                    "needs_manual_filing": {
+                      "type": "boolean"
+                    },
+                    "reason": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Handed to the DAO as a normal proposal. Amount is no longer reserved.",
+              "type": "object",
+              "required": [
+                "Escalated"
+              ],
+              "properties": {
+                "Escalated": {
+                  "type": "object",
+                  "required": [
+                    "proposal_id"
+                  ],
+                  "properties": {
+                    "proposal_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "`settle_escalation` read the DAO's final verdict on the proposal.",
+              "type": "object",
+              "required": [
+                "Settled"
+              ],
+              "properties": {
+                "Settled": {
+                  "type": "object",
+                  "required": [
+                    "approved",
+                    "proposal_id"
+                  ],
+                  "properties": {
+                    "approved": {
+                      "type": "boolean"
+                    },
+                    "proposal_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Transfer in flight (I3: entered at most once).",
+              "type": "string",
+              "enum": [
+                "Sending"
+              ]
+            },
+            {
+              "type": "object",
+              "required": [
+                "Failed"
+              ],
+              "properties": {
+                "Failed": {
+                  "type": "object",
+                  "required": [
+                    "reason"
+                  ],
+                  "properties": {
+                    "reason": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "PayoutStatusKind": {
+          "description": "Status without payload, used to filter `get_payouts`.",
+          "type": "string",
+          "enum": [
+            "Waiting",
+            "Escalating",
+            "Objected",
+            "Escalated",
+            "Settled",
+            "Sending",
+            "Paid",
+            "Failed",
+            "Cancelled"
+          ]
+        },
+        "PeriodUsage": {
+          "type": "object",
+          "required": [
+            "cap",
+            "lane",
+            "period_ns",
+            "period_start_ns",
+            "remaining",
+            "spent"
+          ],
+          "properties": {
+            "cap": {
+              "type": "string"
+            },
+            "lane": {
+              "type": "string"
+            },
+            "period_ns": {
+              "type": "string"
+            },
+            "period_start_ns": {
+              "type": "string"
+            },
+            "remaining": {
+              "type": "string"
+            },
+            "spent": {
+              "type": "string"
+            }
+          }
+        },
+        "Policy": {
+          "description": "Subset of `get_policy()`.",
+          "type": "object",
+          "required": [
+            "proposal_bond",
+            "roles"
+          ],
+          "properties": {
+            "proposal_bond": {
+              "type": "string"
+            },
+            "roles": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/RolePermission"
+              }
+            }
+          }
+        },
+        "Promise": true,
+        "PromiseOrValueNull": {
+          "type": "null"
+        },
+        "PromiseOrValueString": {
+          "type": "string"
+        },
+        "Proposal": {
+          "description": "Subset of `get_proposal(id)`.",
+          "type": "object",
+          "required": [
+            "id",
+            "status"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "status": {
+              "$ref": "#/definitions/ProposalStatus"
+            }
+          }
+        },
+        "ProposalStatus": {
+          "type": "string",
+          "enum": [
+            "InProgress",
+            "Approved",
+            "Rejected",
+            "Removed",
+            "Expired",
+            "Moved",
+            "Failed"
+          ]
+        },
+        "Record": {
+          "type": "object",
+          "required": [
+            "paid_jobs",
+            "sources"
+          ],
+          "properties": {
+            "last_objection_ns": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "paid_jobs": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "sources": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/SourceRef"
+              }
+            }
+          }
+        },
+        "RecordStep": {
+          "description": "One rung of the track-record ladder: once a recipient has at least `min_paid_jobs` paid jobs, Small payouts up to `small_max` are allowed.",
+          "type": "object",
+          "required": [
+            "min_paid_jobs",
+            "small_max"
+          ],
+          "properties": {
+            "min_paid_jobs": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "small_max": {
+              "type": "string"
+            }
+          }
+        },
+        "RoleKind": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "Everyone"
+              ]
+            },
+            {
+              "type": "object",
+              "required": [
+                "Member"
+              ],
+              "properties": {
+                "Member": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "Group"
+              ],
+              "properties": {
+                "Group": {
+                  "type": "array",
+                  "items": {
+                    "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "RolePermission": {
+          "type": "object",
+          "required": [
+            "kind",
+            "name",
+            "permissions"
+          ],
+          "properties": {
+            "kind": {
+              "$ref": "#/definitions/RoleKind"
+            },
+            "name": {
+              "type": "string"
+            },
+            "permissions": {
+              "description": "e.g. `\"*:AddProposal\"`, `\"transfer:VoteApprove\"`.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "SeedEntry": {
+          "description": "One entry of `seed_records`: past DAO proposals that paid this account.",
+          "type": "object",
+          "required": [
+            "account",
+            "proposal_ids"
+          ],
+          "properties": {
+            "account": {
+              "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+              "type": "string"
+            },
+            "proposal_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "SetupConfig": {
+          "description": "Passed to the instance's `new` (by the factory) during setup.",
+          "type": "object",
+          "required": [
+            "lanes"
+          ],
+          "properties": {
+            "council": {
+              "description": "Initial council. `None` = read from the DAO policy on first `sync_council`.",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                "type": "string"
+              }
+            },
+            "filing_deposit": {
+              "description": "Anti-spam deposit for `file_payout`, in yoctoNEAR.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "lanes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/LaneConfig"
+              }
+            },
+            "objection_cooldown_ns": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "SourceRef": {
+          "description": "Where a record point came from. Every point traces to a real payment (I5).",
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "DaoProposal"
+              ],
+              "properties": {
+                "DaoProposal": {
+                  "type": "object",
+                  "required": [
+                    "id"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "NutusPayout"
+              ],
+              "properties": {
+                "NutusPayout": {
+                  "type": "object",
+                  "required": [
+                    "id"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "Standing": {
+          "type": "object",
+          "required": [
+            "amount",
+            "buffer",
+            "id",
+            "next_due_ns",
+            "notice_locked",
+            "notice_periods",
+            "period_ns",
+            "recipient",
+            "sending",
+            "state",
+            "token"
+          ],
+          "properties": {
+            "amount": {
+              "type": "string"
+            },
+            "buffer": {
+              "description": "This payment's share of `TokenBook.standing_buffer`.",
+              "type": "string"
+            },
+            "ends_at_ns": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "id": {
+              "type": "string"
+            },
+            "memo": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "next_due_ns": {
+              "type": "string"
+            },
+            "notice_locked": {
+              "description": "This payment's share of `TokenBook.committed_notice`.",
+              "type": "string"
+            },
+            "notice_periods": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "period_ns": {
+              "type": "string"
+            },
+            "recipient": {
+              "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+              "type": "string"
+            },
+            "sending": {
+              "description": "A `pay_due` transfer is in flight.",
+              "type": "boolean"
+            },
+            "state": {
+              "$ref": "#/definitions/StandingState"
+            },
+            "token": {
+              "type": "string"
+            }
+          }
+        },
+        "StandingInput": {
+          "description": "What the DAO passes to `add_standing`.",
+          "type": "object",
+          "required": [
+            "amount",
+            "first_due_ns",
+            "notice_periods",
+            "period_ns",
+            "recipient",
+            "token"
+          ],
+          "properties": {
+            "amount": {
+              "type": "string"
+            },
+            "ends_at_ns": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "first_due_ns": {
+              "type": "string"
+            },
+            "memo": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "notice_periods": {
+              "description": "Periods of pay guaranteed after `stop_standing`. Locked on creation.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "period_ns": {
+              "type": "string"
+            },
+            "recipient": {
+              "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+              "type": "string"
+            },
+            "token": {
+              "type": "string"
+            }
+          }
+        },
+        "StandingState": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "Active",
+                "Ended"
+              ]
+            },
+            {
+              "type": "object",
+              "required": [
+                "Noticed"
+              ],
+              "properties": {
+                "Noticed": {
+                  "type": "object",
+                  "required": [
+                    "notice_started_ns",
+                    "remaining_periods"
+                  ],
+                  "properties": {
+                    "notice_started_ns": {
+                      "type": "string"
+                    },
+                    "remaining_periods": {
+                      "type": "integer",
+                      "format": "uint32",
+                      "minimum": 0.0
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "Tier": {
+          "type": "string",
+          "enum": [
+            "Small",
+            "Medium"
+          ]
+        },
+        "TokenBookView": {
+          "type": "object",
+          "required": [
+            "available",
+            "balance",
+            "committed_notice",
+            "reserved",
+            "standing_buffer",
+            "token"
+          ],
+          "properties": {
+            "available": {
+              "type": "string"
+            },
+            "balance": {
+              "type": "string"
+            },
+            "committed_notice": {
+              "type": "string"
+            },
+            "reserved": {
+              "type": "string"
+            },
+            "standing_buffer": {
+              "type": "string"
+            },
+            "token": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -24,12 +24,7 @@ jobs:
       - name: Install cargo-near
         run: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/near/cargo-near/releases/latest/download/cargo-near-installer.sh | sh
       - name: Build wasm and ABI
-        run: |
-          mkdir -p packages/core/abi
-          for c in instance factory; do
-            (cd contracts/$c && cargo near build non-reproducible-wasm)
-            cp target/near/nutus_$c/nutus_${c}_abi.json packages/core/abi/
-          done
+        run: sh scripts/abi.sh
       - name: Upload ABI and wasm
         uses: actions/upload-artifact@v4
         with:

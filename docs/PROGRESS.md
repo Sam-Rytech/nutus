@@ -16,7 +16,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | Area | Owner | Status |
 |:--|:--|:--|
 | Planning and naming | AB | [x] done |
-| Interfaces frozen | A → B | [~] stubs + ABI on `a/foundations` |
+| Interfaces frozen | A → B | [~] ABI committed; B to generate types.ts |
 | Instance contract | A | [~] interface, views, pause |
 | Factory and setup | A | [~] interface, views |
 | Contract tests | A | [ ] |
@@ -43,7 +43,8 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 - [x] **AB** Create monorepo per the ARCHITECTURE §9 layout; CI (fmt, clippy, cargo test, wasm build + ABI drift check; pnpm job switches on once a lockfile exists). near-workspaces joins CI in Phase 5
 - [~] **AB** Fill in builder names and GitHub handles above (B's name still needed)
 - [x] **A** Write instance method signatures, structs and events (stubs compile): `contracts/{common,instance,factory}`; init, guards, views, pause/unpause, `set_bond_float`, `set_filing_deposit` already work
-- [~] **A** `cargo near abi` → **B** generates `packages/core/types.ts` — **H1: interfaces frozen**. A: run `sh scripts/abi.sh`, ABIs land in `packages/core/abi/`
+- [x] **A** `cargo near abi` → ABIs committed in `packages/core/abi/` (instance: 40 functions, factory: 9). Regenerate with `sh scripts/abi.sh`
+- [ ] **B** Generate `packages/core/types.ts` from `packages/core/abi/*.json` — **H1: interfaces frozen**
 - [ ] **B** Mock contract client for UI work
 - [ ] **AB** Kill check: read Social Money entries (Petty Cash, Patch Fund, Chai Pot, NDBOT) and the Trezu roadmap; record findings below
 - [ ] **AB** Recheck event rules and submission fields on the event site
