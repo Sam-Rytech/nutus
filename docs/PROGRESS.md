@@ -46,8 +46,8 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 - [x] **A** `cargo near abi` → ABIs committed in `packages/core/abi/` (instance: 40 functions, factory: 9). Regenerate with `sh scripts/abi.sh`
 - [ ] **B** Generate `packages/core/types.ts` from `packages/core/abi/*.json` — **H1: interfaces frozen**
 - [ ] **B** Mock contract client for UI work
-- [ ] **AB** Kill check: read Social Money entries (Petty Cash, Patch Fund, Chai Pot, NDBOT) and the Trezu roadmap; record findings below
-- [ ] **AB** Recheck event rules and submission fields on the event site
+- [x] **AB** Kill check: read Social Money entries (Petty Cash, Patch Fund, Chai Pot, NDBOT) and the Trezu roadmap; record findings below. **Not killed** — see *Kill check (2026-11-10)*
+- [x] **AB** Recheck event rules and submission fields on the event site — see *Event rules (2026-11-10)*. **Deadline 14 Nov 23:59 UTC; repo must be public**
 
 ## Phase 2: Core build (in parallel)
 **A: Instance contract**
@@ -134,9 +134,44 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | Q1 | Mainnet USDC/USDT storage deposit amount; auto-registration? | A | [x] Both `storage_balance_bounds` min = max = 0.00125 NEAR (read on mainnet 2026-11-10); no auto-registration, so Nutus registers recipients on release and on escalation |
 | Q2 | Can one `ft_on_transfer` create, attach global code, init and forward within gas? | A | [x] Yes. Whole chain burned ~37 TGas on testnet (create batch 10.4) |
 | Q3 | How does Trezu display FunctionCall proposals to arbitrary contracts? | B | [ ] |
-| Q4 | Overlap with the four Social Money entries / Trezu roadmap? | AB | [ ] |
+| Q4 | Overlap with the four Social Money entries / Trezu roadmap? | AB | [x] Partial overlap with Petty Cash on fast small payouts; nothing else close; Trezu has none of our features. See *Kill check* |
 | Q5 | Instance name = first label of the DAO account (`x.sputnik-dao.near` → `x.nutus.near`). Two DAOs with the same first label under different factories would collide; hash or full-name scheme? | A | [x] Factory only accepts direct children of allow-listed DAO factories; a collision fails account creation and refunds the DAO |
 | Q6 | Native `cargo test` on Windows needs the aws-lc toolchain (via near-sdk → near-crypto) | A | [x] `AWS_LC_SYS_PREBUILT_NASM=1` (README) |
+
+## Kill check (2026-11-10)
+
+**Verdict: not killed, but the pitch must lead with what only Nutus does.** Fast small payouts on Sputnik are no longer unique.
+
+| Entry | What it is | Overlap with Nutus |
+|:--|:--|:--|
+| [Petty Cash](https://github.com/kasbsquall/petty-cash) (Social Money + Real-World Money) | DAO pre-approves budgets with rules (holders, per-payment cap, per-period cap, categories, end date). In-rule spends are paid in seconds via a `pettycash` DAO role that approves its own Transfer proposal; out-of-rule spends become ordinary DAO proposals; anyone can `settle`. One shared contract (`pettycash.testnet`), money stays in the DAO treasury, testnet only, monthly CSV report. | **Real, on one pillar:** small payouts without a council vote, period caps, escalation as a normal proposal, settle. **None** of: objection windows, Medium tier, records/reputation, standing pay with locked notice, seat watch, preflight, network evidence. |
+| [Patch Fund](https://github.com/emilhuseyn/patchfund-demo-target) | Security bug bounties paid from a DAO when the fix PR merges. | Low: bounty payouts, not budgets/recurring pay. |
+| Chai Pot | No NEAR entry found. The only "Chai Pot" projects are a PayPal AI Hackathon group wallet and a self-help-group savings agent. | None found. |
+| NDBOT | Telegram trading bot for NEAR memecoins (lists Social Money among four tracks). | None. |
+| [Trezu](https://github.com/NEAR-DevHub/trezu) (README + all open milestones) | Treasuries, single/bulk payments, Intents, vesting schedules, lockup dashboard, confidential treasury, Telegram notifications, staking/vaults planned. | **None of ours** in README or milestone descriptions: no objection/default-pay, no spending limits that skip a vote, no recurring pay with guarantees, no notice locks, no reputation, no seat health, no pre-vote payment checks. Partial: vesting only. Individual issues not read. |
+
+Also seen in search (not read): Hat Tip ("three approval tiers in a Sputnik DAO"), FairShare, AllTogether, Koperasi. The track's own example prompt is *tiered approvals + reputation from finished bounties*, so expect several tier/reputation entries.
+
+**What only Nutus does (lead with these):**
+1. **Silence never kills a payout:** objection windows (default-pay, any council member can stop it) and Medium timeouts that file a normal DAO proposal. Petty Cash auto-pays inside rules with no objection path.
+2. **Guaranteed notice for recurring pay:** money locked so even a DAO vote can't withdraw it; paid while paused. Nobody else has standing pay at all.
+3. **Payouts that don't fail:** recipient registered on release and on escalation (found by our sandbox suite; Petty Cash pays registration too, Trezu has an open P0 about bulk USDC payouts going missing).
+4. **Evidence from mainnet:** the scan (138 DAOs, 5,941 proposals) and seat watch — no other entry measures the problem. *Depends on Builder B's report.*
+5. Records traceable to real payments that raise limits (the track's own example — expect competition here).
+
+**Honest differences to be ready for:** Petty Cash keeps money in the DAO treasury until each payment; Nutus moves a budget into the instance (so it can lock notice and reserve amounts). Petty Cash deleted its contract's access keys; Nutus instances are global code by hash with no keys, which is the same guarantee.
+
+## Event rules (2026-11-10)
+
+Source: [nearhackathon.com](https://nearhackathon.com/), [Social Money brief](https://github.com/nearai/near-hackathon-prompt-examples/blob/main/tracks/12-social.md).
+
+- **Deadline: 14 Nov 2026 23:59 UTC** (development ends). Judging 16–18 Nov.
+- **Repository must be public** ("Judges can't open a private one"). Sam-Rytech/nutus is private today.
+- **Demo post on X** tagging @NEARProtocol and #NEARHackathon, with video or screenshots. Both the repo link and the post link are required.
+- Form: project name, team lead, email, team size, tracks (multi-select allowed), NEAR wallet for the prize, repo, demo post, "What did you build?" (20–2,000 chars), optional website.
+- **Screening: Claude Code and Codex check every project "runs and does what the README says"** before human judges. The README must only claim what runs.
+- No rule on mainnet vs testnet, deployed contracts or video length. Up to 2 projects per person.
+- Prizes per track: $10K / $3K / $2K, paid in NEAR; one $55K grand prize.
 
 ## Decisions log
 | Date | Decision | Why |
