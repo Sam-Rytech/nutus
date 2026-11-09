@@ -138,6 +138,10 @@ pub enum NutusEvent {
     #[event_version("1.0.0")]
     StandingEnded { id: StandingId, released: U128 },
 
+    /// The DAO settled a transfer whose callback never ran.
+    #[event_version("1.0.0")]
+    StuckResolved { kind: String, id: U64, paid: bool },
+
     #[event_version("1.0.0")]
     Withdrawn {
         token: TokenId,

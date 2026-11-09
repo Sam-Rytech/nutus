@@ -938,7 +938,7 @@ fn st(c: &Contract, id: StandingId) -> Standing {
 /// Delivers the callback for the in-flight standing transfer.
 fn sent(c: &mut Contract, id: StandingId, now: u64, result: PromiseResult) {
     let s = st(c, id);
-    assert!(s.sending);
+    assert!(s.in_flight.is_some());
     let total = usdc(c).reserved.0;
     let from_notice = matches!(s.state, StandingState::Noticed { .. });
     let k = (total / s.amount.0) as u32;
@@ -1018,7 +1018,7 @@ fn pay_due_pays_every_covered_period() {
     assert_eq!(b.balance, U128(10_050));
     assert_eq!(b.reserved, U128(0));
     assert_eq!(b.standing_buffer, U128(50));
-    assert!(!st(&c, id).sending);
+    assert!(st(&c, id).in_flight.is_none());
     assert!(has_event("standing_paid"));
     check_i1(&c);
 }
@@ -1475,6 +1475,107 @@ fn factory_may_forward_setup_budget_only_as_fund() {
     assert_eq!(value(c.ft_on_transfer(acc("nutus.near"), U128(5), msg)), 5);
 }
 
+// ───────────────────── stuck transfers (lost callback) ─────────────────────
+
+fn sending_payout(c: &mut Contract) -> PayoutId {
+    let id = file(c, 50, T0);
+    call("keeper.near", 0, T0 + DEFAULT_WINDOW_NS);
+    let _ = c.release(id);
+    id
+}
+
+#[test]
+#[should_panic(expected = "NOT_STUCK_YET")]
+fn stuck_payout_needs_a_day() {
+    let mut c = setup();
+    let id = sending_payout(&mut c);
+    call(DAO, 0, T0 + DEFAULT_WINDOW_NS + STUCK_AFTER_NS - 1);
+    c.resolve_stuck_payout(id, false);
+}
+
+#[test]
+#[should_panic(expected = "ONLY_DAO")]
+fn only_dao_resolves_stuck_payouts() {
+    let mut c = setup();
+    let id = sending_payout(&mut c);
+    call(ALICE, 0, T0 + DEFAULT_WINDOW_NS + STUCK_AFTER_NS);
+    c.resolve_stuck_payout(id, false);
+}
+
+#[test]
+fn dao_resolves_stuck_payout_as_not_paid() {
+    let mut c = setup();
+    let id = sending_payout(&mut c);
+    call(DAO, 0, T0 + DEFAULT_WINDOW_NS + STUCK_AFTER_NS);
+    c.resolve_stuck_payout(id, false);
+    assert!(matches!(status(&c, id), PayoutStatus::Failed { .. }));
+    let b = usdc(&c);
+    assert_eq!((b.balance, b.reserved), (U128(10_000), U128(0)));
+    assert_eq!(c.deposits_held, 0);
+    assert!(has_event("stuck_resolved"));
+    check_i1(&c);
+}
+
+#[test]
+fn dao_resolves_stuck_payout_as_paid() {
+    let mut c = setup();
+    let id = sending_payout(&mut c);
+    call(DAO, 0, T0 + DEFAULT_WINDOW_NS + STUCK_AFTER_NS);
+    c.resolve_stuck_payout(id, true);
+    assert_eq!(status(&c, id), PayoutStatus::Paid);
+    let b = usdc(&c);
+    assert_eq!((b.balance, b.reserved), (U128(9_950), U128(0)));
+    assert_eq!(c.get_record(acc(CAROL)).unwrap().paid_jobs, 1);
+    check_i1(&c);
+}
+
+#[test]
+#[should_panic(expected = "NOT_SENDING")]
+fn late_callback_after_resolution_is_refused() {
+    let mut c = setup();
+    let id = sending_payout(&mut c);
+    call(DAO, 0, T0 + DEFAULT_WINDOW_NS + STUCK_AFTER_NS);
+    c.resolve_stuck_payout(id, false);
+    callback(T0 + DEFAULT_WINDOW_NS + STUCK_AFTER_NS, ok());
+    c.on_sent(id);
+}
+
+#[test]
+fn dao_resolves_stuck_standing_transfer() {
+    let mut c = setup();
+    let id = add_standing(&mut c, 2, None);
+    fund_standing(&mut c, id, 250);
+    call("keeper.near", 0, FIRST_DUE);
+    let _ = c.pay_due(id);
+    assert!(st(&c, id).in_flight.is_some());
+    call(DAO, 0, FIRST_DUE + STUCK_AFTER_NS - 1);
+    let early = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        c.resolve_stuck_standing(id, true)
+    }));
+    assert!(early.is_err(), "must wait a day");
+
+    call(DAO, 0, FIRST_DUE + STUCK_AFTER_NS);
+    c.resolve_stuck_standing(id, false);
+    let s = st(&c, id);
+    assert!(s.in_flight.is_none());
+    assert_eq!(s.buffer, U128(250), "not paid: money back in the buffer");
+    assert_eq!(s.next_due_ns, U64(FIRST_DUE), "and the period is due again");
+    assert_eq!(usdc(&c).reserved, U128(0));
+    check_i1(&c);
+}
+
+#[test]
+#[should_panic(expected = "IN_FLIGHT_MISMATCH")]
+fn standing_callback_must_match_the_stored_transfer() {
+    let mut c = setup();
+    let id = add_standing(&mut c, 2, None);
+    fund_standing(&mut c, id, 250);
+    call("keeper.near", 0, FIRST_DUE);
+    let _ = c.pay_due(id);
+    callback(FIRST_DUE, ok());
+    c.on_standing_sent(id, 1, U128(999), false, U64(FIRST_DUE));
+}
+
 // ───────────────────── property test: I1–I5 ─────────────────────
 //
 // Random sequences of every state-changing call, with callbacks delivered
@@ -1772,7 +1873,7 @@ mod prop {
                     let ok: Vec<_> = all
                         .iter()
                         .filter(|s| {
-                            !s.sending
+                            s.in_flight.is_none()
                                 && match s.state {
                                     StandingState::Ended => false,
                                     StandingState::Active => !self.c.paused,
@@ -1802,7 +1903,7 @@ mod prop {
                 _ => {
                     let ok: Vec<_> = all
                         .iter()
-                        .filter(|s| s.state == StandingState::Active && !s.sending)
+                        .filter(|s| s.state == StandingState::Active && s.in_flight.is_none())
                         .map(|s| s.id)
                         .collect();
                     if let Some(id) = self.rng.pick(&ok) {
@@ -1864,7 +1965,14 @@ mod prop {
             match job {
                 Pending::Sent(id) => {
                     let amount = self.c.get_payout(id).unwrap().amount.0;
-                    self.c.on_sent(id);
+                    if self.rng.chance(10) {
+                        // Lost callback: a day later the DAO settles it by vote.
+                        self.now += STUCK_AFTER_NS;
+                        self.as_(DAO, 0);
+                        self.c.resolve_stuck_payout(id, ok);
+                    } else {
+                        self.c.on_sent(id);
+                    }
                     if ok {
                         self.model_balance -= amount;
                     }
@@ -1882,8 +1990,14 @@ mod prop {
                     from_notice,
                     prev,
                 } => {
-                    self.c
-                        .on_standing_sent(id, periods, U128(total), from_notice, prev);
+                    if self.rng.chance(10) {
+                        self.now += STUCK_AFTER_NS;
+                        self.as_(DAO, 0);
+                        self.c.resolve_stuck_standing(id, ok);
+                    } else {
+                        self.c
+                            .on_standing_sent(id, periods, U128(total), from_notice, prev);
+                    }
                     if ok {
                         self.model_balance -= total;
                     }
@@ -2116,6 +2230,8 @@ mod prop {
             Box::new(|c| c.set_filing_deposit(U128(1))),
             Box::new(|c| c.fund_near()),
             Box::new(move |c| c.fund_standing_near(id)),
+            Box::new(|c| c.resolve_stuck_payout(U64(0), false)),
+            Box::new(move |c| c.resolve_stuck_standing(id, false)),
         ];
         for (i, attempt) in attempts.iter().enumerate() {
             call(ALICE, ONE_NEAR, T0);

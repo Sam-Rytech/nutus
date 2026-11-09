@@ -24,7 +24,7 @@ const standing = (over: Partial<Standing>): Standing => ({
   next_due_ns: String(NOW - 1n),
   ends_at_ns: null,
   buffer: "10",
-  sending: false,
+  in_flight: null,
   state: "Active",
   ...over,
 });
@@ -103,7 +103,7 @@ describe("plan: standing", () => {
   it("skips sending, ended and not-yet-due payments", () => {
     const s = snap({
       standing: [
-        standing({ id: "0", sending: true }),
+        standing({ id: "0", in_flight: { periods: 1 } }),
         standing({ id: "1", state: "Ended" }),
         standing({ id: "2", next_due_ns: String(NOW + 1n) }),
       ],

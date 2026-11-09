@@ -92,8 +92,8 @@ The instance trusts the NEP-141 tokens the DAO configured in its lanes to behave
 
 ## Residual risks (known, accepted or open)
 
-1. **Callback out of gas.** If a callback (`on_sent`, `on_standing_sent`, `on_withdrawn`) ran out of its static gas, the payout would stay `Sending` with its amount reserved. Gas is set well above the measured use (testnet setup chain: ~37 TGas total). **Open:** a DAO-only recovery for a payout stuck in `Sending` past a timeout.
-2. **Sputnik keeps the bond on a `Failed` proposal** (seen on testnet). An escalated Transfer that fails at execution costs the bond float one bond. Preflight keeps this rare.
+1. **Callback out of gas.** If a transfer callback never ran, the payout (or standing transfer) would stay in flight with its amount reserved. Gas is set well above the measured use (testnet setup chain: ~37 TGas total). **Recovery:** after 24 h in flight the DAO can vote `resolve_stuck_payout` / `resolve_stuck_standing(id, paid)`, having checked the transfer in an explorer; it settles through the same code as the callback, and a callback arriving afterwards is refused (`NOT_SENDING`). Tested at unit level and inside the property test. A lost `on_withdrawn` callback leaves the withdrawn amount debited (the safe direction).
+2. **Sputnik keeps the bond on a `Failed` proposal** (seen on testnet). An escalated Transfer that fails at execution costs the bond float one bond. The commonest cause (unregistered recipient) is removed: escalation registers the recipient first. Approve, reject and expire-then-finalize all return the bond (sandbox).
 3. **`silent_can_object` is advisory.** Seat silence is computed off-chain; the contract lets every listed objector object.
 4. **One colluding council member** can release Medium payouts up to `medium_max` per payout and the period cap (see Council member).
 5. **Validator clock drift.** Windows use `block_timestamp`; drift is seconds against windows of hours.

@@ -20,7 +20,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | Instance contract | A | [x] every §4.5 method implemented and tested; v2 live on testnet |
 | Factory and setup | A | [x] v2 factory on testnet; demo DAO set up through a real proposal |
 | Contract tests | A | [x] 84 instance + 15 factory unit, property test (I1–I5), 8 sandbox scenarios vs real Sputnik (CI) |
-| Keeper | A | [x] `packages/keeper`; smoke-tested read-only on testnet |
+| Keeper | A | [x] `packages/keeper`; hourly GitHub Actions round as keeper.nutus-dev.testnet (needs the `KEEPER_PRIVATE_KEY` secret) |
 | Report port | B | [ ] |
 | Core (builders, preflight, maths) | B | [ ] |
 | Web app | B | [ ] |
@@ -98,7 +98,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 **A**
 - [x] near-workspaces with real Sputnik wasm: setup via real proposal (USDC and NEAR), refund on failed setup (`contracts/tests`, 8 scenarios, CI)
 - [x] Boundaries: small / medium / full vote (sandbox), record steps, cap reset (unit)
-- [~] Objection in window → real proposal with the right kind, amount and description; bond returns on approve (sandbox). Reject / finalize-expired not yet covered
+- [x] Objection in window → real proposal with the right kind, amount and description; bond returns on approve, reject and expire-then-finalize (sandbox)
 - [x] Objection after window refused; non-objector refused
 - [x] Medium approve and timeout
 - [x] Double release no-op; failed transfer restores budget
@@ -107,6 +107,8 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 - [x] Property test: random sequences, I1–I5 after every step (plus exact accounting vs an outside model; callbacks out of order; coverage guard)
 - [x] Keeper: release / escalate / pay_due / settle, idempotent (17 tests; skips short buffers and manual-filing cases instead of burning gas)
 - [x] `THREAT_MODEL.md` (actors, invariants → tests, residual risks)
+- [x] Stuck-transfer recovery: DAO-only `resolve_stuck_payout` / `resolve_stuck_standing` after 24 h in flight (unit + property tests)
+- [x] Hosted keeper: `.github/workflows/keeper.yml`, hourly, as `keeper.nutus-dev.testnet`
 
 **B**
 - [ ] Seat watch: status bands, freeze distance, drafted seat proposals (person files)
@@ -118,7 +120,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 - [ ] Run every flow on the testnet DAO with real transactions; log tx hashes below
 - [ ] Every Fix-this proposal files and executes on the demo DAO
 - [ ] Preflight fixes an unregistered recipient end to end
-- [ ] README (setup, trust statement, how to run keeper)
+- [x] README (setup, trust statement, how to run keeper)
 - [ ] Demo video (60s script in the plan)
 - [ ] PITCH.md trimmed to verified claims only
 - [ ] Optional: ask 1–2 active DAO operators whether they'd vote in a lane; quote if yes
@@ -129,7 +131,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 ## Open questions
 | # | Question | Owner | Status |
 |:--|:--|:--|:--|
-| Q1 | Mainnet USDC/USDT storage deposit amount; auto-registration? | A | [ ] |
+| Q1 | Mainnet USDC/USDT storage deposit amount; auto-registration? | A | [x] Both `storage_balance_bounds` min = max = 0.00125 NEAR (read on mainnet 2026-11-10); no auto-registration, so Nutus registers recipients on release and on escalation |
 | Q2 | Can one `ft_on_transfer` create, attach global code, init and forward within gas? | A | [x] Yes. Whole chain burned ~37 TGas on testnet (create batch 10.4) |
 | Q3 | How does Trezu display FunctionCall proposals to arbitrary contracts? | B | [ ] |
 | Q4 | Overlap with the four Social Money entries / Trezu roadmap? | AB | [ ] |
@@ -175,6 +177,8 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | 2026-11-09 | Sandbox tests copy the Sputnik v2 wasm from a live testnet DAO at test time | Tests run against the code DAOs actually use, without vendoring a binary |
 | 2026-11-09 | Test token gets a `#[private]` `deploy_global` | near-workspaces 0.24 can't publish global contract code |
 | 2026-11-09 | Escalation registers the recipient with the token (from the filer's deposit) | Found by the sandbox suite: the DAO's Transfer to an unregistered recipient fails at execution and Sputnik keeps the bond |
+| 2026-11-10 | Stuck transfers: the DAO settles by vote after 24 h in flight (`resolve_stuck_*`), through the callback's own code; standing transfers store what's in flight (`in_flight` replaces `sending`) | The contract can't tell if a transfer landed when its callback is lost; a person checks the explorer, the DAO votes, and a late callback is refused |
+| 2026-11-10 | Hosted keeper = hourly GitHub Actions run | Free, no server; windows are 48 h, so hourly is plenty |
 | 2026-11-09 | Keeper never retries `needs_manual_filing` or short standing buffers | Both would fail again and burn gas until a person acts |
 | 2026-11-09 | Spec V2 needs a note: Sputnik kept the 1 NEAR bond when a proposal's execution **Failed** (proposal 0 on testnet) | V2 lists approve / reject / expire as refunding. A failed escalation would cost the bond float its bond; keep failures rare with preflight |
 

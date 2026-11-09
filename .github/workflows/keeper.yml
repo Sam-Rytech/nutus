@@ -1,0 +1,55 @@
+name: Keeper (testnet)
+
+# One keeper round per hour: release / escalate / pay_due / settle_escalation
+# whatever is due on the testnet instances. Windows are 48h and medium
+# timeouts 7 days, so hourly is plenty. Anyone can run a keeper; this one
+# signs with keeper.nutus-dev.testnet, which only holds gas money.
+#
+# Setup (once): gh secret set KEEPER_PRIVATE_KEY   (the key for keeper.nutus-dev.testnet)
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: keeper
+  cancel-in-progress: false
+
+jobs:
+  round:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Skip unless the keeper key is configured
+        id: key
+        env:
+          KEY: ${{ secrets.KEEPER_PRIVATE_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "KEEPER_PRIVATE_KEY is not set; skipping."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.key.outputs.ok == 'true'
+        uses: actions/checkout@v4
+      - if: steps.key.outputs.ok == 'true'
+        uses: pnpm/action-setup@v4
+      - if: steps.key.outputs.ok == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - if: steps.key.outputs.ok == 'true'
+        run: pnpm install --frozen-lockfile --filter @nutus/keeper
+      - if: steps.key.outputs.ok == 'true'
+        name: Keeper round
+        env:
+          ONCE: "1"
+          NEAR_RPC_URL: https://rpc.testnet.near.org
+          KEEPER_ACCOUNT_ID: keeper.nutus-dev.testnet
+          KEEPER_PRIVATE_KEY: ${{ secrets.KEEPER_PRIVATE_KEY }}
+          # v2 demo instance, plus the superseded v1 one (immutable, still live).
+          INSTANCES: nutus-demo.v2.nutus-dev.testnet,nutus-demo.nutus.nutus-dev.testnet
+        run: pnpm --filter @nutus/keeper start

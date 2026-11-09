@@ -799,6 +799,50 @@
         }
       },
       {
+        "name": "resolve_stuck_payout",
+        "doc": " DAO only, by vote: settle a payout stuck in `Sending` because its\n callback never ran (e.g. out of gas). Allowed after `STUCK_AFTER_NS`.\n The DAO checks the transfer in an explorer and says whether it landed:\n `paid: true` finishes it as Paid, `false` as Failed (budget restored).",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "payout_id",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "paid",
+              "type_schema": {
+                "type": "boolean"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "resolve_stuck_standing",
+        "doc": " DAO only, by vote: the same for a standing payment's transfer.",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "standing_id",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "paid",
+              "type_schema": {
+                "type": "boolean"
+              }
+            }
+          ]
+        }
+      },
+      {
         "name": "seed_records",
         "doc": " Imports past payments the DAO already made (drafted by the report from\n its proposal history). One point per proposal id; ids already counted\n for that account are skipped. The DAO votes on this, so it's authorised\n and every point traces to a real proposal (I5).",
         "kind": "call",
@@ -1299,6 +1343,13 @@
               "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
               "type": "string"
             },
+            "sending_since_ns": {
+              "description": "When the payout entered `Sending`. After `STUCK_AFTER_NS` the DAO may resolve it with `resolve_stuck_payout` (lost callback).",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "status": {
               "$ref": "#/definitions/PayoutStatus"
             },
@@ -1782,7 +1833,6 @@
             "notice_periods",
             "period_ns",
             "recipient",
-            "sending",
             "state",
             "token"
           ],
@@ -1802,6 +1852,17 @@
             },
             "id": {
               "type": "string"
+            },
+            "in_flight": {
+              "description": "The `pay_due` transfer in flight, if any.",
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/StandingTransfer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "memo": {
               "type": [
@@ -1827,10 +1888,6 @@
             "recipient": {
               "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
               "type": "string"
-            },
-            "sending": {
-              "description": "A `pay_due` transfer is in flight.",
-              "type": "boolean"
             },
             "state": {
               "$ref": "#/definitions/StandingState"
@@ -1924,6 +1981,36 @@
               "additionalProperties": false
             }
           ]
+        },
+        "StandingTransfer": {
+          "description": "A standing transfer awaiting its callback: what to settle either way.",
+          "type": "object",
+          "required": [
+            "amount",
+            "from_notice",
+            "periods",
+            "prev_next_due_ns",
+            "since_ns"
+          ],
+          "properties": {
+            "amount": {
+              "type": "string"
+            },
+            "from_notice": {
+              "type": "boolean"
+            },
+            "periods": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "prev_next_due_ns": {
+              "type": "string"
+            },
+            "since_ns": {
+              "type": "string"
+            }
+          }
         },
         "Tier": {
           "type": "string",

@@ -170,6 +170,9 @@ pub struct Payout {
     /// goes back to the filer when the payout reaches a final state.
     pub deposit: U128,
     pub approved_by: Option<AccountId>,
+    /// When the payout entered `Sending`. After `STUCK_AFTER_NS` the DAO may
+    /// resolve it with `resolve_stuck_payout` (lost callback).
+    pub sending_since_ns: Option<U64>,
     pub status: PayoutStatus,
 }
 
@@ -215,9 +218,20 @@ pub struct Standing {
     pub buffer: U128,
     /// This payment's share of `TokenBook.committed_notice`.
     pub notice_locked: U128,
-    /// A `pay_due` transfer is in flight.
-    pub sending: bool,
+    /// The `pay_due` transfer in flight, if any.
+    pub in_flight: Option<StandingTransfer>,
     pub state: StandingState,
+}
+
+/// A standing transfer awaiting its callback: what to settle either way.
+#[near(serializers = [json, borsh])]
+#[derive(Clone, Debug, PartialEq)]
+pub struct StandingTransfer {
+    pub periods: u32,
+    pub amount: U128,
+    pub from_notice: bool,
+    pub prev_next_due_ns: U64,
+    pub since_ns: U64,
 }
 
 /// Where a record point came from. Every point traces to a real payment (I5).

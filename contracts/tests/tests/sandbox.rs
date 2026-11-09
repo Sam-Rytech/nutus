@@ -482,3 +482,118 @@ async fn sync_council_follows_dao_policy() -> Result<()> {
     assert_eq!(council.as_array().unwrap().len(), 4);
     Ok(())
 }
+
+/// The DAO's exact bond comes back to the instance however the escalated
+/// proposal ends: rejected by vote, or expired and then finalized. Either way
+/// settle_escalation closes the payout without a record point.
+#[tokio::test]
+async fn bond_returns_on_reject_and_on_expire() -> Result<()> {
+    let env = Env::new().await?;
+    done(
+        env.root
+            .call(&env.instance, "fund_bond_float")
+            .deposit(near(3))
+            .transact()
+            .await?,
+    )?;
+
+    let escalate = |reason: &'static str| {
+        let env = &env;
+        async move {
+            let id = env.file(20 * TOKEN_UNIT).await?;
+            done(
+                env.council[0]
+                    .call(&env.instance, "object")
+                    .args_json(json!({"payout_id": id, "reason": reason}))
+                    .max_gas()
+                    .transact()
+                    .await?,
+            )?;
+            let pid: u64 = env.payout(&id).await?["status"]["Escalated"]["proposal_id"]
+                .as_str()
+                .unwrap()
+                .parse()?;
+            anyhow::Ok((id, pid))
+        }
+    };
+    let act = |pid: u64, action: &'static str, who: usize| {
+        let env = &env;
+        async move {
+            let kind = env.proposal(&env.dao, pid).await?["kind"].clone();
+            let r = env.council[who]
+                .call(&env.dao, "act_proposal")
+                .args_json(json!({"id": pid, "action": action, "proposal": kind}))
+                .max_gas()
+                .transact()
+                .await?;
+            anyhow::ensure!(r.is_success(), "{action} failed: {:#?}", r.failures());
+            anyhow::Ok(())
+        }
+    };
+    let settle_rejected = |id: String| {
+        let env = &env;
+        async move {
+            done(
+                env.keeper
+                    .call(&env.instance, "settle_escalation")
+                    .args_json(json!({"payout_id": id}))
+                    .max_gas()
+                    .transact()
+                    .await?,
+            )?;
+            assert_eq!(
+                env.payout(&id).await?["status"]["Settled"]["approved"],
+                false
+            );
+            anyhow::Ok(())
+        }
+    };
+
+    // Rejected by vote.
+    let (id, pid) = escalate("reject me").await?;
+    let before = env.near_balance(&env.instance).await?;
+    act(pid, "VoteReject", 1).await?;
+    act(pid, "VoteReject", 2).await?;
+    assert_eq!(env.proposal(&env.dao, pid).await?["status"], "Rejected");
+    let after = env.near_balance(&env.instance).await?;
+    assert!(
+        after > before + 900_000_000_000_000_000_000_000,
+        "bond back on reject: {before} → {after}"
+    );
+    settle_rejected(id).await?;
+
+    // Expired, then finalized. Shorten the DAO's proposal period first.
+    let kind = json!({"ChangePolicyUpdateParameters": {"parameters": {
+        "proposal_bond": null, "proposal_period": (15 * SEC).to_string(),
+        "bounty_bond": null, "bounty_forgiveness_period": null}}});
+    assert_eq!(
+        env.dao_do(&env.dao.clone(), "short proposals", kind)
+            .await?
+            .1,
+        "Approved"
+    );
+    let (id, pid) = escalate("let it expire").await?;
+    let before = env.near_balance(&env.instance).await?;
+    env.wait_until(env.now().await? + 20 * SEC).await?;
+    act(pid, "Finalize", 1).await?;
+    assert_eq!(env.proposal(&env.dao, pid).await?["status"], "Expired");
+    let after = env.near_balance(&env.instance).await?;
+    assert!(
+        after > before + 900_000_000_000_000_000_000_000,
+        "bond back on finalize: {before} → {after}"
+    );
+    settle_rejected(id).await?;
+
+    let rec = env
+        .view(
+            &env.instance,
+            "get_record",
+            json!({"account_id": env.carol.id()}),
+        )
+        .await?;
+    assert_eq!(
+        rec["paid_jobs"], 0,
+        "no points for rejected or expired escalations"
+    );
+    env.assert_i1().await
+}

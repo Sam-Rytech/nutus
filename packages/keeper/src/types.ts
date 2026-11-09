@@ -34,7 +34,8 @@ export interface Standing {
   next_due_ns: string;
   ends_at_ns: string | null;
   buffer: string;
-  sending: boolean;
+  /** Transfer awaiting its callback, if any. */
+  in_flight: unknown | null;
   state: StandingState;
 }
 

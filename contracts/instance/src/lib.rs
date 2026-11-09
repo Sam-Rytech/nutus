@@ -42,6 +42,10 @@ pub const MAX_NAME_LEN: usize = 128;
 pub const MAX_LINK_LEN: usize = 512;
 pub const MAX_MEMO_LEN: usize = 256;
 pub const MAX_REASON_LEN: usize = 512;
+/// A transfer in flight this long has lost its callback; the DAO may then
+/// settle it by vote (`resolve_stuck_payout` / `resolve_stuck_standing`).
+/// Callbacks normally land within seconds.
+pub const STUCK_AFTER_NS: u64 = 24 * 3_600 * 1_000_000_000;
 /// Most record points one `seed_records` call may add (gas).
 pub const MAX_SEED_POINTS: usize = 200;
 
@@ -266,7 +270,7 @@ impl Contract {
             memo: s.memo,
             buffer: U128(0),
             notice_locked: U128(notice),
-            sending: false,
+            in_flight: None,
             state: StandingState::Active,
         });
         id
@@ -279,7 +283,7 @@ impl Contract {
         self.assert_dao();
         let mut s = self.standing_entry(standing_id);
         require!(s.state == StandingState::Active, "NOT_ACTIVE");
-        require!(!s.sending, "ALREADY_SENDING");
+        require!(s.in_flight.is_none(), "ALREADY_SENDING");
         let mut book = self.book(&s.token);
         book.standing_buffer = U128(book.standing_buffer.0 - s.buffer.0);
         s.buffer = U128(0);
@@ -584,6 +588,7 @@ impl Contract {
             deadline_ns: U64(deadline),
             deposit: U128(attached),
             approved_by: None,
+            sending_since_ns: None,
             status: PayoutStatus::Waiting,
         });
         self.put_book(&token, book);
@@ -692,7 +697,7 @@ impl Contract {
     pub fn pay_due(&mut self, standing_id: StandingId) -> Option<Promise> {
         let now = env::block_timestamp();
         let mut s = self.standing_entry(standing_id);
-        require!(!s.sending, "ALREADY_SENDING");
+        require!(s.in_flight.is_none(), "ALREADY_SENDING");
         let from_notice = match s.state {
             StandingState::Ended => return None,
             StandingState::Active => {
@@ -753,7 +758,13 @@ impl Contract {
         self.put_book(&s.token, book);
         let prev_next_due = s.next_due_ns;
         s.next_due_ns = U64(s.next_due_ns.0 + u64::from(periods) * s.period_ns.0);
-        s.sending = true;
+        s.in_flight = Some(StandingTransfer {
+            periods,
+            amount: U128(total),
+            from_notice,
+            prev_next_due_ns: prev_next_due,
+            since_ns: U64(now),
+        });
         let send = transfer(&s.token, &s.recipient, total, true);
         self.put_standing(s);
         Some(
@@ -817,52 +828,9 @@ impl Contract {
 
     #[private]
     pub fn on_sent(&mut self, payout_id: PayoutId) {
-        let mut p = self.payout(payout_id);
+        let p = self.payout(payout_id);
         require!(p.status == PayoutStatus::Sending, "NOT_SENDING");
-        if promise_succeeded() {
-            let mut book = self.book(&p.token);
-            book.reserved = U128(book.reserved.0 - p.amount.0);
-            book.balance = U128(book.balance.0 - p.amount.0);
-            self.put_book(&p.token, book);
-            if let Some(mut lane) = self.lanes.get(&p.lane).cloned() {
-                lane.open_payouts -= 1;
-                self.lanes.insert(p.lane.clone(), lane);
-            }
-            self.deposits_held -= p.deposit.0;
-            let mut rec = self.records.get(&p.recipient).cloned().unwrap_or_default();
-            rec.paid_jobs += 1;
-            rec.sources.push(SourceRef::NutusPayout { id: payout_id });
-            self.records.insert(p.recipient.clone(), rec);
-            // Token registration was paid from the deposit.
-            let used = if p.token == NEAR_TOKEN_ID {
-                0
-            } else {
-                FT_STORAGE_DEPOSIT
-            };
-            refund(&p.filer, p.deposit.0.saturating_sub(used));
-            p.status = PayoutStatus::Paid;
-            NutusEvent::PayoutPaid {
-                id: payout_id,
-                recipient: p.recipient.clone(),
-                token: p.token.clone(),
-                amount: p.amount,
-            }
-            .emit();
-        } else {
-            // The batch reverted, so the registration deposit comes back too.
-            self.close_unpaid(&p);
-            refund(&p.filer, p.deposit.0);
-            let reason = "transfer failed".to_string();
-            p.status = PayoutStatus::Failed {
-                reason: reason.clone(),
-            };
-            NutusEvent::PayoutFailed {
-                id: payout_id,
-                reason,
-            }
-            .emit();
-        }
-        self.put_payout(p);
+        self.finish_send(p, promise_succeeded());
     }
 
     #[private]
@@ -885,48 +853,59 @@ impl Contract {
         from_notice: bool,
         prev_next_due: U64,
     ) {
-        let mut s = self.standing_entry(standing_id);
-        require!(s.sending, "NOT_SENDING");
-        s.sending = false;
-        let mut book = self.book(&s.token);
-        book.reserved = U128(book.reserved.0 - amount.0);
-        if promise_succeeded() {
-            book.balance = U128(book.balance.0 - amount.0);
-            self.put_book(&s.token, book);
-            NutusEvent::StandingPaid {
-                id: standing_id,
-                periods,
-                amount,
-                from_notice,
-            }
-            .emit();
-            if standing_finished(&s) {
-                self.end_standing(&mut s);
-            }
-        } else {
-            // Put the money back where it came from; the periods are due again.
-            if from_notice {
-                s.notice_locked = U128(s.notice_locked.0 + amount.0);
-                book.committed_notice = U128(book.committed_notice.0 + amount.0);
-                if let StandingState::Noticed {
-                    remaining_periods, ..
-                } = &mut s.state
-                {
-                    *remaining_periods += periods;
-                }
-            } else {
-                s.buffer = U128(s.buffer.0 + amount.0);
-                book.standing_buffer = U128(book.standing_buffer.0 + amount.0);
-            }
-            self.put_book(&s.token, book);
-            s.next_due_ns = prev_next_due;
-            NutusEvent::StandingFailed {
-                id: standing_id,
-                reason: "transfer failed".into(),
-            }
-            .emit();
+        let s = self.standing_entry(standing_id);
+        let Some(t) = &s.in_flight else {
+            env::panic_str("NOT_SENDING")
+        };
+        // The stored transfer is the source of truth; the args only label it.
+        require!(
+            (t.periods, t.amount, t.from_notice, t.prev_next_due_ns)
+                == (periods, amount, from_notice, prev_next_due),
+            "IN_FLIGHT_MISMATCH"
+        );
+        self.finish_standing(s, promise_succeeded());
+    }
+
+    /// DAO only, by vote: settle a payout stuck in `Sending` because its
+    /// callback never ran (e.g. out of gas). Allowed after `STUCK_AFTER_NS`.
+    /// The DAO checks the transfer in an explorer and says whether it landed:
+    /// `paid: true` finishes it as Paid, `false` as Failed (budget restored).
+    pub fn resolve_stuck_payout(&mut self, payout_id: PayoutId, paid: bool) {
+        self.assert_dao();
+        let p = self.payout(payout_id);
+        require!(p.status == PayoutStatus::Sending, "NOT_SENDING");
+        let since = p.sending_since_ns.map_or(0, |t| t.0);
+        require!(
+            env::block_timestamp() >= since.saturating_add(STUCK_AFTER_NS),
+            "NOT_STUCK_YET"
+        );
+        NutusEvent::StuckResolved {
+            kind: "payout".into(),
+            id: payout_id,
+            paid,
         }
-        self.put_standing(s);
+        .emit();
+        self.finish_send(p, paid);
+    }
+
+    /// DAO only, by vote: the same for a standing payment's transfer.
+    pub fn resolve_stuck_standing(&mut self, standing_id: StandingId, paid: bool) {
+        self.assert_dao();
+        let s = self.standing_entry(standing_id);
+        let Some(t) = &s.in_flight else {
+            env::panic_str("NOT_SENDING")
+        };
+        require!(
+            env::block_timestamp() >= t.since_ns.0.saturating_add(STUCK_AFTER_NS),
+            "NOT_STUCK_YET"
+        );
+        NutusEvent::StuckResolved {
+            kind: "standing".into(),
+            id: standing_id,
+            paid,
+        }
+        .emit();
+        self.finish_standing(s, paid);
     }
 
     #[private]
@@ -1341,11 +1320,111 @@ impl Contract {
         self.lanes.insert(cfg.id, lane);
     }
 
+    /// Settles a payout's transfer: `ok` = it landed. Shared by the callback
+    /// and the DAO's stuck-payout resolution.
+    fn finish_send(&mut self, mut p: Payout, ok: bool) {
+        let payout_id = p.id;
+        if ok {
+            let mut book = self.book(&p.token);
+            book.reserved = U128(book.reserved.0 - p.amount.0);
+            book.balance = U128(book.balance.0 - p.amount.0);
+            self.put_book(&p.token, book);
+            if let Some(mut lane) = self.lanes.get(&p.lane).cloned() {
+                lane.open_payouts -= 1;
+                self.lanes.insert(p.lane.clone(), lane);
+            }
+            self.deposits_held -= p.deposit.0;
+            let mut rec = self.records.get(&p.recipient).cloned().unwrap_or_default();
+            rec.paid_jobs += 1;
+            rec.sources.push(SourceRef::NutusPayout { id: payout_id });
+            self.records.insert(p.recipient.clone(), rec);
+            // Token registration was paid from the deposit.
+            let used = if p.token == NEAR_TOKEN_ID {
+                0
+            } else {
+                FT_STORAGE_DEPOSIT
+            };
+            refund(&p.filer, p.deposit.0.saturating_sub(used));
+            p.status = PayoutStatus::Paid;
+            NutusEvent::PayoutPaid {
+                id: payout_id,
+                recipient: p.recipient.clone(),
+                token: p.token.clone(),
+                amount: p.amount,
+            }
+            .emit();
+        } else {
+            // The batch reverted, so the registration deposit comes back too.
+            self.close_unpaid(&p);
+            refund(&p.filer, p.deposit.0);
+            let reason = "transfer failed".to_string();
+            p.status = PayoutStatus::Failed {
+                reason: reason.clone(),
+            };
+            NutusEvent::PayoutFailed {
+                id: payout_id,
+                reason,
+            }
+            .emit();
+        }
+        self.put_payout(p);
+    }
+
+    /// Settles a standing transfer from its stored `in_flight` record.
+    fn finish_standing(&mut self, mut s: Standing, ok: bool) {
+        let t = s
+            .in_flight
+            .take()
+            .unwrap_or_else(|| env::panic_str("NOT_SENDING"));
+        let (standing_id, periods, amount, from_notice, prev_next_due) =
+            (s.id, t.periods, t.amount, t.from_notice, t.prev_next_due_ns);
+        let mut book = self.book(&s.token);
+        book.reserved = U128(book.reserved.0 - amount.0);
+        if ok {
+            book.balance = U128(book.balance.0 - amount.0);
+            self.put_book(&s.token, book);
+            NutusEvent::StandingPaid {
+                id: standing_id,
+                periods,
+                amount,
+                from_notice,
+            }
+            .emit();
+            if standing_finished(&s) {
+                self.end_standing(&mut s);
+            }
+        } else {
+            // Put the money back where it came from; the periods are due again.
+            if from_notice {
+                s.notice_locked = U128(s.notice_locked.0 + amount.0);
+                book.committed_notice = U128(book.committed_notice.0 + amount.0);
+                if let StandingState::Noticed {
+                    remaining_periods, ..
+                } = &mut s.state
+                {
+                    *remaining_periods += periods;
+                }
+            } else {
+                s.buffer = U128(s.buffer.0 + amount.0);
+                book.standing_buffer = U128(book.standing_buffer.0 + amount.0);
+            }
+            self.put_book(&s.token, book);
+            s.next_due_ns = prev_next_due;
+            NutusEvent::StandingFailed {
+                id: standing_id,
+                reason: "transfer failed".into(),
+            }
+            .emit();
+        }
+        self.put_standing(s);
+    }
+
     /// Waiting → Sending (I3: only from Waiting, so a second release panics
     /// `ALREADY_SENT` and changes nothing).
     fn start_send(&mut self, mut p: Payout) -> Promise {
         let id = p.id;
         p.status = PayoutStatus::Sending;
+        p.sending_since_ns = Some(U64(env::block_timestamp()));
         let send = transfer(&p.token, &p.recipient, p.amount.0, true);
         self.put_payout(p);
         NutusEvent::PayoutSending { id }.emit();
