@@ -1,8 +1,8 @@
-import { build, groupMembers, rpcView, type Policy } from "@nutus/core";
-import { DAY, findings, proposalsSince, retry, seatsOf, singlePayment, smallCutoffs, type Payment } from "@nutus/report/browser";
+import { build, groupMembers, instanceAccount, rpcView, type Policy } from "@nutus/core";
+import { DAY, findings, proposalsSince, recordsFromHistory, repeatSeries, retry, seatsOf, singlePayment, smallCutoffs, standingFromSeries, type Payment } from "@nutus/report/browser";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { MAINNET_RPC_URL, RPC_URL } from "../config.ts";
+import { DEFAULTS, MAINNET_RPC_URL, RPC_URL } from "../config.ts";
 import { formatAmount, nowNs, useAsync, useToken } from "../lib/chain.ts";
 
 const pct = (a: number, b: number) => (b === 0 ? "—" : `${Math.round((100 * a) / b)}%`);
@@ -21,7 +21,7 @@ export function Report() {
     const [policy, proposals] = await Promise.all([retry(() => view<Policy>(dao, "get_policy"), 5), proposalsSince(view, dao, w.from)]);
     const h = { dao, policy, proposals };
     const pays = proposals.map((p) => singlePayment(dao, p)).filter((p): p is Payment => p !== null);
-    return { h, w, f: findings([h], w), pays, seats: seatsOf(h, w) };
+    return { h, w, f: findings([h], w), pays, seats: seatsOf(h, w), records: recordsFromHistory(dao, proposals), series: repeatSeries([h]) };
   }, [dao, net]);
 
   const go = (e: React.FormEvent) => {
@@ -58,8 +58,9 @@ export function Report() {
   );
 }
 
-function Findings({ h, f, pays, seats, net }: NonNullable<ReturnType<typeof useAsync<any>>["data"]> & { net: string }) {
+function Findings({ h, f, pays, seats, records, series, net }: NonNullable<ReturnType<typeof useAsync<any>>["data"]> & { net: string }) {
   const { f1, f2, f3, f4, f5 } = f;
+  const instance = instanceAccount(h.dao, DEFAULTS.factory);
   const council = h.policy.roles.flatMap((r: Policy["roles"][number]) => groupMembers(r) ?? []);
   const silent: string[] = (seats ?? []).filter((s: { silent: boolean }) => s.silent).map((s: { member: string }) => s.member);
   // Draft lane from the DAO's own small payments in its most-used token.
@@ -89,7 +90,22 @@ function Findings({ h, f, pays, seats, net }: NonNullable<ReturnType<typeof useA
       ) : (
         <p className="muted">No approved payments to size a lane from yet.</p>
       )}
-      {f2.series > 0 && <p>{f2.series} repeat payment{f2.series === 1 ? "" : "s"} could become recurring pay with guaranteed notice: one vote instead of one per period. Add them after setup from the Set up screen.</p>}
+      {records.length > 0 && (
+        <details>
+          <summary>Draft a record seed for {records.length} recipient{records.length === 1 ? "" : "s"}</summary>
+          <p className="small muted">Approved payments in this DAO's history become each recipient's track record, so a longer record raises how much can be paid without a vote. The contract checks every proposal id against the DAO.</p>
+          <pre>{JSON.stringify(build.seedRecords(instance, records), null, 2)}</pre>
+          <p className="small">File it after setup from the <Link to={`/setup?dao=${encodeURIComponent(h.dao)}`}>Set up screen</Link>.</p>
+        </details>
+      )}
+      {series.length > 0 && (
+        <details>
+          <summary>Draft recurring pay for {series.length} repeat series</summary>
+          <p className="small muted">Each series paid the same recipient, token and amount at least three times. This draft pays that amount every median period, with one period of locked notice, instead of a fresh vote each time.</p>
+          <pre>{JSON.stringify(series.map((s: Parameters<typeof standingFromSeries>[0]) => build.addStanding(instance, standingFromSeries(s))), null, 2)}</pre>
+          <p className="small">File these after setup from the <Link to={`/setup?dao=${encodeURIComponent(h.dao)}`}>Set up screen</Link>.</p>
+        </details>
+      )}
       {silent.length > 0 && (
         <details>
           <summary>Draft seat changes for {silent.length} silent member{silent.length === 1 ? "" : "s"}</summary>

@@ -93,23 +93,53 @@ export interface F2 {
   daosWithSeries: number;
 }
 
-export function f2(histories: DaoHistory[]): F2 {
-  const counts = new Map<string, number>();
-  let approved = 0;
+/** A run of approved payments with the same recipient, token and amount, in submission order. */
+export interface RepeatSeries {
+  dao: string;
+  recipient: string;
+  token: string;
+  amount: bigint;
+  /** Proposal ids, oldest first. */
+  proposalIds: string[];
+  /** Submission times (ns), oldest first. */
+  submitted: bigint[];
+}
+
+/** Approved single payments grouped by (dao, recipient, token, amount), keeping those paid 3+ times. */
+export function repeatSeries(histories: DaoHistory[]): RepeatSeries[] {
+  const groups = new Map<string, RepeatSeries>();
   for (const h of histories)
     for (const p of h.proposals) {
       const pay = singlePayment(h.dao, p);
       if (!pay || pay.status !== "Approved") continue;
-      approved++;
       const k = `${pay.dao}|${pay.recipient}|${pay.token}|${pay.amount}`;
-      counts.set(k, (counts.get(k) ?? 0) + 1);
+      const g = groups.get(k) ?? { dao: pay.dao, recipient: pay.recipient, token: pay.token, amount: pay.amount, proposalIds: [], submitted: [] };
+      g.proposalIds.push(String(p.id));
+      g.submitted.push(pay.submitted);
+      groups.set(k, g);
     }
-  const series = [...counts].filter(([, n]) => n >= 3);
+  return [...groups.values()]
+    .filter((g) => g.proposalIds.length >= 3)
+    .map((g) => {
+      const order = g.proposalIds.map((_, i) => i).sort((a, b) => (g.submitted[a]! < g.submitted[b]! ? -1 : g.submitted[a]! > g.submitted[b]! ? 1 : 0));
+      return { ...g, proposalIds: order.map((i) => g.proposalIds[i]!), submitted: order.map((i) => g.submitted[i]!) };
+    })
+    .sort((a, b) => `${a.dao}|${a.recipient}|${a.token}|${a.amount}`.localeCompare(`${b.dao}|${b.recipient}|${b.token}|${b.amount}`));
+}
+
+export function f2(histories: DaoHistory[]): F2 {
+  let approved = 0;
+  for (const h of histories)
+    for (const p of h.proposals) {
+      const pay = singlePayment(h.dao, p);
+      if (pay && pay.status === "Approved") approved++;
+    }
+  const series = repeatSeries(histories);
   return {
     approvedPayments: approved,
-    repeatPayments: series.reduce((s, [, n]) => s + n, 0),
+    repeatPayments: series.reduce((s, g) => s + g.proposalIds.length, 0),
     series: series.length,
-    daosWithSeries: new Set(series.map(([k]) => k.split("|")[0])).size,
+    daosWithSeries: new Set(series.map((g) => g.dao)).size,
   };
 }
 
