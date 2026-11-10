@@ -3,13 +3,14 @@ import "@fontsource-variable/public-sans";
 import "./styles.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, NavLink, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { instanceId } from "./config.ts";
 import { WalletProvider, useWallet } from "./lib/wallet.tsx";
 import { Board } from "./screens/Board.tsx";
 import { Council } from "./screens/Council.tsx";
 import { Ecosystem } from "./screens/Ecosystem.tsx";
 import { GetPaid } from "./screens/GetPaid.tsx";
+import { Privacy } from "./screens/Privacy.tsx";
 import { Report } from "./screens/Report.tsx";
 import { Setup } from "./screens/Setup.tsx";
 
@@ -44,6 +45,7 @@ function Shell() {
             <button className="btn" style={{ marginTop: "0.5rem" }} onClick={signIn}>Connect wallet</button>
           )}
         </div>
+        <Link className="privacy small muted" to="/privacy">Privacy and terms</Link>
       </aside>
       <main>
         <Routes>
@@ -53,9 +55,21 @@ function Shell() {
           <Route path="/council" element={<Council />} />
           <Route path="/report" element={<Report />} />
           <Route path="/setup" element={<Setup />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
     </div>
+  );
+}
+
+function NotFound() {
+  return (
+    <>
+      <h1>Page not found</h1>
+      <p className="muted">That address doesn't match a screen.</p>
+      <Link className="btn quiet" to="/">Go to the overview</Link>
+    </>
   );
 }
 

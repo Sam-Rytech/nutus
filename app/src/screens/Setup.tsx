@@ -121,6 +121,7 @@ export function Setup() {
         </div>
       </div>
 
+      {dao && info.loading && <p className="muted">Reading {dao}…</p>}
       {info.error && <div className="notice bad">Couldn't read {dao}: {info.error}</div>}
       {problem && <div className="notice bad">{problem}</div>}
       {checks.length > 0 && <h2>Checks</h2>}

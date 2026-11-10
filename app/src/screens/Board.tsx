@@ -79,7 +79,10 @@ export function Board() {
       )}
 
       <h2>Budget</h2>
-      <table>
+      {lanes.length === 0 ? (
+        <p className="muted">No lanes yet. A setup proposal adds the first one.</p>
+      ) : (
+        <table>
         <thead>
           <tr><th>Lane</th><th>Small up to</th><th>Medium up to</th><th>Spent this period</th><th>Window</th></tr>
         </thead>
@@ -101,9 +104,10 @@ export function Board() {
             );
           })}
         </tbody>
-      </table>
+        </table>
+      )}
       <p className="small muted">
-        {books.map((b) => (
+        {books.length === 0 ? "No token books yet." : books.map((b) => (
           <span key={b.token}>
             Held: <Amount raw={b.balance} token={b.token} />. Free to spend: <Amount raw={b.available} token={b.token} />. Locked for notice:{" "}
             <Amount raw={b.committed_notice} token={b.token} />.{" "}

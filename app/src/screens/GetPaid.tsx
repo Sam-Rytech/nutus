@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { instanceId } from "../config.ts";
 import { duration, formatAmount, parseAmount, reader, useAsync, useToken, type Lane } from "../lib/chain.ts";
 import { explain, useWallet } from "../lib/wallet.tsx";
@@ -38,7 +39,16 @@ export function GetPaid() {
   const token = useToken(lane?.token);
 
   if (base.error) return <div className="notice bad">Couldn't read {id}: {base.error}</div>;
-  if (!base.data || !lane) return <p className="muted">Reading lanes…</p>;
+  if (!base.data) return <p className="muted">Reading lanes…</p>;
+  if (!lane)
+    return (
+      <>
+        <h1>Get paid</h1>
+        <p className="lede">File a payout for work you've done. You'll see how it will be paid before you sign.</p>
+        <div className="notice warn">This instance has no lanes yet, so there is nothing to file against. A setup proposal adds the first lane.</div>
+        <Link className="btn quiet" to="/setup">Set up a DAO</Link>
+      </>
+    );
 
   let amount: string | null = null;
   let amountError = "";
@@ -123,6 +133,7 @@ export function GetPaid() {
             {to} has {rec.data?.paid_jobs ?? 0} paid job{rec.data?.paid_jobs === 1 ? "" : "s"} on record here.
           </p>
         )}
+        {to && rec.error && <p className="small muted" style={{ margin: 0 }}>Couldn't read {to}'s record: {rec.error}</p>}
         {tier && <div className={`notice ${tier.cls}`} style={{ margin: 0 }}>{tier.text}</div>}
         <div className="row">
           {accountId ? (
