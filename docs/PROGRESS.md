@@ -217,7 +217,7 @@ Source: [nearhackathon.com](https://nearhackathon.com/), [Social Money brief](ht
 | 2026-11-10 | F1/F2 count a proposal's payment only when it makes exactly one | First scan: one test DAO with 200 transfers per proposal produced 1,209 of 1,222 "lapsed small payments" |
 | 2026-11-10 | Times measured between proposal submissions | Sputnik stores who voted, not when |
 | 2026-11-10 | Web app is Vite + React (static), not Next.js | Every screen reads public chain data and signs in the wallet; no server needed; faster to build and host |
-| 2026-11-10 | MyNearWallet only | The Meteor module needs Node's Buffer in the browser and crashes the app |
+| 2026-11-10 | Meteor Wallet only, with a `buffer` polyfill | MyNearWallet stopped accepting new app connections (retired); Meteor's module needs Node's Buffer, so `src/polyfills.ts` sets it before anything else loads |
 | 2026-11-10 | pnpm overrides pin vite 8.3.6 / rolldown 1.2.16 | Keeps every install inside pnpm's minimum release age instead of waiving the check |
 | 2026-11-10 | App deployed to Vercel as a static build (`pnpm --filter @nutus/app deploy`) | Built locally from the monorepo; SPA rewrite in `app/public/vercel.json` |
 | 2026-11-10 | Hosted keeper = hourly GitHub Actions run | Free, no server; windows are 48 h, so hourly is plenty |

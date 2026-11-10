@@ -1,3 +1,4 @@
+import "./polyfills.ts";
 import "@fontsource-variable/public-sans";
 import "./styles.css";
 import { StrictMode } from "react";

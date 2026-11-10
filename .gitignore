@@ -9,3 +9,6 @@ target/
 data/scan/daos/
 app/dist/
 .vercel/
+
+# Private notes, not for the repo
+docs/HANDOVER.md

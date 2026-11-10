@@ -14,10 +14,11 @@
   "dependencies": {
     "@fontsource-variable/public-sans": "^5.2.0",
     "@near-wallet-selector/core": "^10.1.4",
+    "@near-wallet-selector/meteor-wallet": "10.1.4",
     "@near-wallet-selector/modal-ui": "^10.1.4",
-    "@near-wallet-selector/my-near-wallet": "^10.1.4",
     "@nutus/core": "workspace:*",
     "@nutus/report": "workspace:*",
+    "buffer": "6.0.3",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router-dom": "^7.18.5"

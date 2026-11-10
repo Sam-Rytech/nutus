@@ -1,6 +1,6 @@
 import { actionCreators, setupWalletSelector, type WalletSelector } from "@near-wallet-selector/core";
 import { setupModal, type WalletSelectorModal } from "@near-wallet-selector/modal-ui";
-import { setupMyNearWallet } from "@near-wallet-selector/my-near-wallet";
+import { setupMeteorWallet } from "@near-wallet-selector/meteor-wallet";
 import "@near-wallet-selector/modal-ui/styles.css";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { NETWORK } from "../config.ts";
@@ -34,7 +34,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let unsub = () => {};
-    setupWalletSelector({ network: NETWORK, modules: [setupMyNearWallet()] }).then((s) => {
+    setupWalletSelector({ network: NETWORK, modules: [setupMeteorWallet()] }).then((s) => {
       setSelector(s);
       setModal(setupModal(s, { contractId: "" }));
       const pick = () => setAccountId(s.store.getState().accounts.find((a) => a.active)?.accountId ?? null);
