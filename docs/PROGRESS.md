@@ -21,10 +21,10 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | Factory and setup | A | [x] v2 factory on testnet; demo DAO set up through a real proposal |
 | Contract tests | A | [x] 84 instance + 15 factory unit, property test (I1–I5), 8 sandbox scenarios vs real Sputnik (CI) |
 | Keeper | A | [x] `packages/keeper`; hourly GitHub Actions round as keeper.nutus-dev.testnet (needs the `KEEPER_PRIVATE_KEY` secret) |
-| Report port | B | [ ] |
-| Core (builders, preflight, maths) | B | [ ] |
-| Web app | B | [ ] |
-| Seat watch | B | [ ] |
+| Report port | B | [~] rebuilt from scratch (old scan lost); `packages/report` + `DEFINITIONS.md`; mainnet rescan running |
+| Core (builders, preflight, maths) | B | [x] `packages/core`: ABI types, client, threshold maths, builders, preflight (19 tests, live-checked) |
+| Web app | B | [~] all six screens against testnet v2 (Vite + React); wallet signing not yet exercised; not deployed |
+| Seat watch | B | [x] silent seats + freeze distance in the report and the council inbox; seat changes drafted, never filed |
 | Notifications | B | [ ] |
 | Testnet end-to-end | AB | [ ] |
 | Docs, video, pitch | AB | [ ] |
@@ -44,8 +44,8 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 - [~] **AB** Fill in builder names and GitHub handles above (B's name still needed)
 - [x] **A** Write instance method signatures, structs and events (stubs compile): `contracts/{common,instance,factory}`; init, guards, views, pause/unpause, `set_bond_float`, `set_filing_deposit` already work
 - [x] **A** `cargo near abi` → ABIs committed in `packages/core/abi/` (instance: 40 functions, factory: 9). Regenerate with `sh scripts/abi.sh`
-- [ ] **B** Generate `packages/core/types.ts` from `packages/core/abi/*.json` — **H1: interfaces frozen**
-- [ ] **B** Mock contract client for UI work
+- [x] **B** Generate `packages/core/types.ts` from `packages/core/abi/*.json` — **H1: interfaces frozen** (`pnpm --filter @nutus/core gen` → `src/generated/`)
+- [x] **B** ~~Mock contract client~~ Not needed: the app reads the live testnet instance through the typed client
 - [x] **AB** Kill check: read Social Money entries (Petty Cash, Patch Fund, Chai Pot, NDBOT) and the Trezu roadmap; record findings below. **Not killed** — see *Kill check (2026-11-10)*
 - [x] **AB** Recheck event rules and submission fields on the event site — see *Event rules (2026-11-10)*. **Deadline 14 Nov 23:59 UTC; repo must be public**
 
@@ -62,11 +62,11 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 - [x] Unit tests for each (52 in `contracts/instance/src/tests.rs`)
 
 **B: Report and core**
-- [ ] RPC reader: `get_proposals` paging, `get_policy`, SQLite cache
-- [ ] Port `scripts/deeper.py` metrics F1–F5
-- [ ] Regression tests reproduce scan numbers (24%/3%, 62/136, 18 never repaid, median 35 days, 216/1,835, 46 series in 17 DAOs, 199/496, 23 + 12 frozen roles, 125 failed, 0 bounties, 95/138)
-- [ ] Vote-threshold maths (Weight / Ratio `num*total/den + 1`) with tests
-- [ ] Report screen (mock data → live RPC)
+- [x] RPC reader: `get_proposals` paging, `get_policy`, JSON-file cache (not SQLite), 429 back-off
+- [x] ~~Port `scripts/deeper.py`~~ The script and data are lost; F1–F5 rewritten from the spec with written definitions
+- [x] ~~Regression tests reproduce the old numbers~~ **Old numbers retired** (nothing reproduces them). Fixture tests for each metric; the new scan's summary is the source for the pitch
+- [x] Vote-threshold maths (Weight / Ratio `num*total/den + 1`, quorum floor) with tests
+- [x] Report screen (live RPC, any DAO, mainnet or testnet)
 
 ## Phase 3: Escalation, standing, records
 **A**
@@ -77,9 +77,9 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 - [x] `sync_council` from DAO policy (also caches Group role members for role-based filers)
 
 **B**
-- [ ] Fix-this builders: lane setup (budget from trailing spend), standing from repeat series, `seed_records` from history, seat changes, policy role grant when restricted
-- [ ] Setup screen: review → preflight → file via wallet
-- [ ] Preflight: `storage_balance_of`, DAO balance, wrap NEAR, known-cause warnings; adds actions into proposals
+- [~] Fix-this builders: lane setup (budget from trailing spend) ✓, seat changes ✓, policy role grant ✓, `seed_records` builder ✓ (not yet drafted from history), standing from repeat series (described, not drafted)
+- [x] Setup screen: review → checks (balance, existing instance, AddProposal permission, council) → file via wallet
+- [x] Preflight: `storage_balance_of` (rewrites to storage_deposit + ft_transfer), DAO balance, missing NEAR recipient. Wrap-NEAR not done
 
 ## Phase 4: Factory and testnet
 **A**
@@ -89,10 +89,10 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 - [x] Testnet DAO with 3 council members (Sputnik v2): `nutus-demo.sputnikv2.testnet`
 
 **B**
-- [ ] Swap mocks for live testnet calls
-- [ ] Get-paid screen
-- [ ] Council inbox (Object, Approve, standing due/short, seat and preflight warnings, finalize to recover bond)
-- [ ] Public board (events + views)
+- [x] Live testnet calls throughout
+- [x] Get-paid screen (tier and timing preview from lane + record)
+- [x] Council inbox (Object, Approve, release / escalate / settle / pay_due, short buffers, seat health, manual-filing list). Finalize-to-recover-bond not shown
+- [x] Public board (views; the objection window as a live time bar)
 
 ## Phase 5: Integration tests and hardening
 **A**
@@ -111,8 +111,8 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 - [x] Hosted keeper: `.github/workflows/keeper.yml`, hourly, as `keeper.nutus-dev.testnet`
 
 **B**
-- [ ] Seat watch: status bands, freeze distance, drafted seat proposals (person files)
-- [ ] Ecosystem screen
+- [x] Seat watch: silent in 60 days, freeze distance, drafted seat proposals (person files)
+- [~] Ecosystem screen (renders `data/scan/summary.json`; waiting on the rescan)
 - [ ] Telegram notifications (account link by signature; window, shortfall, quiet seat, bond to recover)
 - [ ] UI pass: HIG structure, self-hosted fonts, legal pages, empty and error states
 
@@ -213,6 +213,12 @@ Source: [nearhackathon.com](https://nearhackathon.com/), [Social Money brief](ht
 | 2026-11-09 | Test token gets a `#[private]` `deploy_global` | near-workspaces 0.24 can't publish global contract code |
 | 2026-11-09 | Escalation registers the recipient with the token (from the filer's deposit) | Found by the sandbox suite: the DAO's Transfer to an unregistered recipient fails at execution and Sputnik keeps the bond |
 | 2026-11-10 | Stuck transfers: the DAO settles by vote after 24 h in flight (`resolve_stuck_*`), through the callback's own code; standing transfers store what's in flight (`in_flight` replaces `sending`) | The contract can't tell if a transfer landed when its callback is lost; a person checks the explorer, the DAO votes, and a late callback is refused |
+| 2026-11-10 | Report rebuilt from the spec; earlier scan figures (138 DAOs, 5,941 proposals, 24% vs 3%, …) **retired** | `scripts/deeper.py` and `data/` were never in the repo and can't be found; the pitch may only quote what `pnpm --filter @nutus/report scan` reproduces |
+| 2026-11-10 | F1/F2 count a proposal's payment only when it makes exactly one | First scan: one test DAO with 200 transfers per proposal produced 1,209 of 1,222 "lapsed small payments" |
+| 2026-11-10 | Times measured between proposal submissions | Sputnik stores who voted, not when |
+| 2026-11-10 | Web app is Vite + React (static), not Next.js | Every screen reads public chain data and signs in the wallet; no server needed; faster to build and host |
+| 2026-11-10 | MyNearWallet only | The Meteor module needs Node's Buffer in the browser and crashes the app |
+| 2026-11-10 | pnpm overrides pin vite 8.3.6 / rolldown 1.2.16 | Keeps every install inside pnpm's minimum release age instead of waiving the check |
 | 2026-11-10 | Hosted keeper = hourly GitHub Actions run | Free, no server; windows are 48 h, so hourly is plenty |
 | 2026-11-09 | Keeper never retries `needs_manual_filing` or short standing buffers | Both would fail again and burn gas until a person acts |
 | 2026-11-09 | Spec V2 needs a note: Sputnik kept the 1 NEAR bond when a proposal's execution **Failed** (proposal 0 on testnet) | V2 lists approve / reject / expire as refunding. A failed escalation would cost the bond float its bond; keep failures rare with preflight |
