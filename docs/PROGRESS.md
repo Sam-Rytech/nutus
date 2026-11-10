@@ -23,7 +23,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | Keeper | A | [x] `packages/keeper`; hourly GitHub Actions round as keeper.nutus-dev.testnet (needs the `KEEPER_PRIVATE_KEY` secret) |
 | Report port | B | [~] rebuilt from scratch (old scan lost); `packages/report` + `DEFINITIONS.md`; mainnet rescan running |
 | Core (builders, preflight, maths) | B | [x] `packages/core`: ABI types, client, threshold maths, builders, preflight (19 tests, live-checked) |
-| Web app | B | [~] all six screens live at https://nutus.vercel.app (testnet v2); wallet signing not yet exercised |
+| Web app | B | [~] all six screens live at https://nutus.vercel.app (testnet v2); wallet signing verified on testnet (file, object, approve via Meteor) |
 | Seat watch | B | [x] silent seats + freeze distance in the report and the council inbox; seat changes drafted, never filed |
 | Notifications | B | [ ] |
 | Testnet end-to-end | AB | [ ] |
@@ -245,6 +245,11 @@ Source: [nearhackathon.com](https://nearhackathon.com/), [Social Money brief](ht
 | 2026-11-09 | Live objection: payout #0 (50 tUSDC to unregistered nutus-fund5.testnet) filed, c2 objects → DAO proposal 3, recipient registered | `Ee2tYXA6R9vJKupVDhWNbbuLv3c6rnavDPwN6ipEWAgQ`, `7K75JTSy3YFkhbhMabcwwuUbDmzPALgAjZFzvydjWvvA` | A |
 | 2026-11-09 | c1 + c3 approve proposal 3 → recipient paid 50 tUSDC by the DAO, 1 NEAR bond back to the instance | `8TiUurSaE5GY39qsJ2qodhquD54ftEo7uiXVEzCXi7D6`, `BbQCCNwrWxQem37pw1MdLy9Y3jyoJ21QFAreRsJouaM7` | A |
 | 2026-11-09 | settle_escalation → payout Settled(approved), record +1 from DaoProposal 3 | `3oazo5EmFaYUvKjpiTb2Mk32EyEoHcy6A5PsFXkFWZ8V` | A |
+| 2026-11-10 | **Wallet signing (Meteor, from the web app):** c1 files payout #3 (10 tUSDC, small) | `DXNo9JsZ4zHxjs2tQdFUxn1rFwU8J3VNWdhCikTsVLmh` | B |
+| 2026-11-10 | c1 objects to #3 in the council inbox → DAO proposal 4 (Transfer 10 tUSDC), bond from the instance | `DL2jMatJVN92g8HiA5jae2e4fTk18vtt2V26KmVrUYgM` | B |
+| 2026-11-10 | c2 files medium payout #2 (150 tUSDC to c3) from the CLI; c1 approves it in the app → c3 paid 150 tUSDC | `AsU1Bw8H5VbKyaASVzaDdE6qg29qpYwLTYYexhCocRnF`, `2LWUDWfFv1BG5nFvABaUujUqYCsvj1fUu88ovmrZzvZD` | B |
+| 2026-11-10 | c1 files payout #4 (10 tUSDC, small; a second filing) — left to the keeper | `GecKobzTmoKVJ3Uex1XSFRuThfib4zRcBnPpwLsKd4U5` | B |
+| 2026-11-10 | Bond float topped up 2 NEAR (was 0.43 after the objection) | `DMwxGyc68DtHh7Kq62L3CihJ9bamuU54vnBTTbh51f5` | B |
 
 ## Blockers
 _None._ (Testnet moved to v2 with the escalation fix on 2026-11-09.)
