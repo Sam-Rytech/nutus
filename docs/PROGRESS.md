@@ -250,6 +250,8 @@ Source: [nearhackathon.com](https://nearhackathon.com/), [Social Money brief](ht
 | 2026-11-10 | c2 files medium payout #2 (150 tUSDC to c3) from the CLI; c1 approves it in the app → c3 paid 150 tUSDC | `AsU1Bw8H5VbKyaASVzaDdE6qg29qpYwLTYYexhCocRnF`, `2LWUDWfFv1BG5nFvABaUujUqYCsvj1fUu88ovmrZzvZD` | B |
 | 2026-11-10 | c1 files payout #4 (10 tUSDC, small; a second filing) — left to the keeper | `GecKobzTmoKVJ3Uex1XSFRuThfib4zRcBnPpwLsKd4U5` | B |
 | 2026-11-10 | Bond float topped up 2 NEAR (was 0.43 after the objection) | `DMwxGyc68DtHh7Kq62L3CihJ9bamuU54vnBTTbh51f5` | B |
+| 2026-11-10 | c2 + c3 approve DAO proposal 4 → c1 paid 10 tUSDC by the DAO, 1 NEAR bond back to the instance (float 3.43 NEAR) | `Fbb7ckfZ1Sb25PkG4RJXepmmyW8RLpQ2gZgpUjioBZ8A`, `4tGuNZWo4P76sdy1X9TspNKVwHw4G58dqq1nLshWPZnU` | B |
+| 2026-11-10 | settle_escalation(3) → Settled(approved); c1 record 1 job, source DaoProposal 4 | `BnwT5DEfPFG1UCUKFqxP9R49vnyQ1owcQzo249mkWLK3` | B |
 
 ## Blockers
 _None._ (Testnet moved to v2 with the escalation fix on 2026-11-09.)
