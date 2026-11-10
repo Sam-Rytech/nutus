@@ -6,6 +6,7 @@ import { nowNs, reader, useAsync, view, type Payout } from "../lib/chain.ts";
 import { explain, useWallet } from "../lib/wallet.tsx";
 import { PayoutRow } from "./Board.tsx";
 import { statusName } from "../Window.tsx";
+import { CheckPayment } from "./CheckPayment.tsx";
 
 export function Council() {
   const id = instanceId();
@@ -132,6 +133,8 @@ export function Council() {
           <div className="payouts">{manual.map((p) => <PayoutRow key={p.id} p={p} />)}</div>
         </>
       )}
+
+      <CheckPayment dao={config.dao} bond={d.data.policy.proposal_bond} />
     </>
   );
 }

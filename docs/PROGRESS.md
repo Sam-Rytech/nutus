@@ -119,7 +119,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 ## Phase 6: End-to-end, docs, submission (AB)
 - [ ] Run every flow on the testnet DAO with real transactions; log tx hashes below
 - [ ] Every Fix-this proposal files and executes on the demo DAO
-- [x] Preflight fixes an unregistered recipient end to end (DAO proposal 5; see testnet log). Not yet surfaced in the app
+- [x] Preflight fixes an unregistered recipient end to end (DAO proposal 5; see testnet log). In the app: "Check a payment before the vote" on the council inbox
 - [x] README (setup, trust statement, how to run keeper)
 - [ ] Demo video (60s script in the plan)
 - [ ] PITCH.md trimmed to verified claims only
