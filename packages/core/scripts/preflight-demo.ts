@@ -3,6 +3,10 @@
 import { preflight, rpcView, viewAccount } from "../src/index.ts";
 
 const [dao, token, to, amount, rpc = "https://rpc.testnet.fastnear.com"] = process.argv.slice(2);
+if (!dao || !token || !to || !amount) {
+  console.error("Usage: tsx scripts/preflight-demo.ts <dao> <token> <to> <amount> [rpc]");
+  process.exit(1);
+}
 const view = rpcView(rpc);
 const r = await preflight(
   { view, nearBalance: async (id) => { const a = await viewAccount(rpc, id); return a ? BigInt(a.amount) : null; } },
