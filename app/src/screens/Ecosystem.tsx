@@ -36,11 +36,11 @@ export function Ecosystem() {
         {f.daos} active Sputnik DAOs ({meta.minProposals}+ proposals in the last {meta.windowDays} days, of {meta.daosOnFactory} on sputnik-dao.near), {f.proposals.toLocaleString()} proposals. Scanned {meta.scannedAt.slice(0, 10)}.
       </p>
       <div className="figures">
-        <div className="figure"><div className="n">{pct(f.f1.smallLapsed, f.f1.smallPayments)}</div><p>of small payments lapsed without a decision, against {pct(f.f1.largeLapsed, f.f1.largePayments)} of large ones. {f.f1.smallLapsedZeroVotes} of {f.f1.smallLapsed} got no votes at all.</p></div>
-        <div className="figure"><div className="n">{f.f1.neverRepaid} of {f.f1.recipientsWithLapse}</div><p>people whose small payment lapsed were never paid by that DAO afterwards.</p></div>
+        <div className="figure"><div className="n">{pct(f.f3.silentSeats, f.f3.seats)}</div><p>of council seats ({f.f3.silentSeats} of {f.f3.seats}) cast no vote in the last 60 days.</p></div>
+        <div className="figure"><div className="n">{f.f3.oneAwayRoles}</div><p>councils are one silent seat away from being unable to pass a payment. {f.f3.frozenRoles} already can't.</p></div>
+        <div className="figure"><div className="n">{f.f4.failed}</div><p>proposals passed the vote and then failed to execute, in {f.f4.daos} DAOs.</p></div>
+        <div className="figure"><div className="n">{f.f1.neverRepaid} of {f.f1.recipientsWithLapse}</div><p>people whose small payment lapsed were never paid by that DAO afterwards. {f.f1.smallLapsedZeroVotes} of those {f.f1.smallLapsed} lapsed payments got no votes at all.</p></div>
         <div className="figure"><div className="n">{pct(f.f2.repeatPayments, f.f2.approvedPayments)}</div><p>of approved payments repeat the same recipient and amount ({f.f2.series} series in {f.f2.daosWithSeries} DAOs), each voted on from scratch.</p></div>
-        <div className="figure"><div className="n">{f.f3.silentSeats} of {f.f3.seats}</div><p>council seats cast no vote in 60 days. {f.f3.frozenRoles} roles can't pass a payment; {f.f3.oneAwayRoles} are one silent seat away.</p></div>
-        <div className="figure"><div className="n">{f.f4.failed}</div><p>payments and calls passed the vote and then failed to execute, in {f.f4.daos} DAOs.</p></div>
       </div>
       <p className="small muted">
         Every number is reproducible: <span className="mono">pnpm --filter @nutus/report scan</span>. Definitions are in packages/report/DEFINITIONS.md.

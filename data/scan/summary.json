@@ -1,0 +1,92 @@
+{
+  "meta": {
+    "scannedAt": "2026-11-10T10:22:49.385Z",
+    "rpc": "https://rpc.mainnet.fastnear.com",
+    "factory": "sputnik-dao.near",
+    "windowDays": 365,
+    "minProposals": 10,
+    "daosOnFactory": 2115,
+    "errors": [
+      {
+        "dao": "i2087req.sputnik-dao.near",
+        "error": "query: wasm execution failed with error: MethodResolveError(MethodNotFound)"
+      },
+      {
+        "dao": "i2243drain.sputnik-dao.near",
+        "error": "query: wasm execution failed with error: MethodResolveError(MethodNotFound)"
+      },
+      {
+        "dao": "i2243pdrain.sputnik-dao.near",
+        "error": "query: wasm execution failed with error: MethodResolveError(MethodNotFound)"
+      },
+      {
+        "dao": "i8827tcb3628.sputnik-dao.near",
+        "error": "query: wasm execution failed with error: MethodResolveError(MethodNotFound)"
+      },
+      {
+        "dao": "i10101ora.sputnik-dao.near",
+        "error": "query: wasm execution failed with error: MethodResolveError(MethodNotFound)"
+      },
+      {
+        "dao": "i8827u790f0a.sputnik-dao.near",
+        "error": "query: wasm execution failed with error: MethodResolveError(MethodNotFound)"
+      },
+      {
+        "dao": "i10340a.sputnik-dao.near",
+        "error": "query: wasm execution failed with error: MethodResolveError(MethodNotFound)"
+      },
+      {
+        "dao": "i10101psn.sputnik-dao.near",
+        "error": "query: wasm execution failed with error: MethodResolveError(MethodNotFound)"
+      },
+      {
+        "dao": "i10340b.sputnik-dao.near",
+        "error": "query: wasm execution failed with error: MethodResolveError(MethodNotFound)"
+      }
+    ]
+  },
+  "findings": {
+    "daos": 174,
+    "proposals": 8339,
+    "f1": {
+      "smallPayments": 1450,
+      "smallLapsed": 178,
+      "largePayments": 930,
+      "largeLapsed": 96,
+      "smallLapsedZeroVotes": 135,
+      "neverRepaid": 84,
+      "recipientsWithLapse": 115,
+      "medianDaysToRepay": 0.6
+    },
+    "f2": {
+      "approvedPayments": 1822,
+      "repeatPayments": 218,
+      "series": 47,
+      "daosWithSeries": 24
+    },
+    "f3": {
+      "seats": 396,
+      "silentSeats": 133,
+      "frozenRoles": 3,
+      "oneAwayRoles": 60,
+      "daosAssessed": 113,
+      "frozenDaos": 3
+    },
+    "f4": {
+      "failed": 171,
+      "byCause": {
+        "other call": 87,
+        "token call": 35,
+        "token transfer": 23,
+        "intents": 19,
+        "bulk payment": 4,
+        "NEAR transfer": 3
+      },
+      "daos": 54
+    },
+    "f5": {
+      "bountyProposals": 0,
+      "daosUsingBounties": 0
+    }
+  }
+}

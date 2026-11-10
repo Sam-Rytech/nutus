@@ -69,7 +69,7 @@ h3 { font-size: var(--t-2); font-weight: 700; margin: 0 0 0.25rem; }
 p { max-width: 42rem; }
 
 /* ── controls ── */
-.btn { border: 1px solid var(--ink); background: var(--ink); color: var(--paper); padding: 0.45rem 0.9rem; border-radius: 6px; cursor: pointer; font-weight: 600; }
+.btn { display: inline-block; text-decoration: none; border: 1px solid var(--ink); background: var(--ink); color: var(--paper); padding: 0.45rem 0.9rem; border-radius: 6px; cursor: pointer; font-weight: 600; }
 .btn.quiet { background: transparent; color: var(--ink); border-color: var(--line); }
 .btn.stop { background: var(--brick); border-color: var(--brick); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
