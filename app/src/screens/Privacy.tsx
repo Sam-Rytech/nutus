@@ -18,7 +18,7 @@ export function Privacy() {
 
       <h2>What you sign is public</h2>
       <p>
-        Payouts, proposals and votes go to NEAR and are public on chain. Nutus never sees your private key: MyNearWallet signs every transaction. Check
+        Payouts, proposals and votes go to NEAR and are public on chain. Nutus never sees your private key: your wallet signs every transaction. Check
         each transaction in your wallet before you approve it.
       </p>
 
