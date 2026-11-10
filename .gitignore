@@ -8,3 +8,4 @@ target/
 # Mainnet scan cache (regenerable: pnpm --filter @nutus/report scan)
 data/scan/daos/
 app/dist/
+.vercel/

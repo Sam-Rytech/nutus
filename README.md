@@ -2,6 +2,8 @@
 
 **Your DAO pays people even when the council is busy.**
 
+**Live app:** https://nutus.vercel.app (testnet). Mainnet findings: [data/scan/REPORT.md](data/scan/REPORT.md).
+
 Nutus sits beside a NEAR DAO treasury (Sputnik DAO v2 / Trezu). The council decides once; small payouts then go through unless someone objects, recurring pay runs with guaranteed notice, silent seats are flagged before they freeze the treasury, and every payout is checked before the vote. The DAO's own contract is never changed.
 
 - Spec: [docs/NUTUS_SPEC.md](docs/NUTUS_SPEC.md)
@@ -34,6 +36,24 @@ cargo test --workspace          # unit tests
 cargo install cargo-near        # once
 sh scripts/abi.sh               # build wasm + refresh packages/core/abi/*.json
 ```
+
+## App
+
+```bash
+pnpm --filter @nutus/app dev      # http://localhost:5173, reads the testnet v2 instance
+pnpm --filter @nutus/app deploy   # build + publish to Vercel (static)
+```
+
+Point it at another instance with `?instance=<account>`. Signing uses MyNearWallet on testnet.
+
+## Report
+
+```bash
+pnpm --filter @nutus/report scan                         # scan mainnet, write data/scan/{summary.json,REPORT.md}
+pnpm --filter @nutus/report dao ref-finance.sputnik-dao.near   # one DAO, live
+```
+
+How each number is measured: [packages/report/DEFINITIONS.md](packages/report/DEFINITIONS.md).
 
 ## Tests
 

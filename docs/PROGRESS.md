@@ -23,7 +23,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | Keeper | A | [x] `packages/keeper`; hourly GitHub Actions round as keeper.nutus-dev.testnet (needs the `KEEPER_PRIVATE_KEY` secret) |
 | Report port | B | [~] rebuilt from scratch (old scan lost); `packages/report` + `DEFINITIONS.md`; mainnet rescan running |
 | Core (builders, preflight, maths) | B | [x] `packages/core`: ABI types, client, threshold maths, builders, preflight (19 tests, live-checked) |
-| Web app | B | [~] all six screens against testnet v2 (Vite + React); wallet signing not yet exercised; not deployed |
+| Web app | B | [~] all six screens live at https://nutus.vercel.app (testnet v2); wallet signing not yet exercised |
 | Seat watch | B | [x] silent seats + freeze distance in the report and the council inbox; seat changes drafted, never filed |
 | Notifications | B | [ ] |
 | Testnet end-to-end | AB | [ ] |
@@ -112,7 +112,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 
 **B**
 - [x] Seat watch: silent in 60 days, freeze distance, drafted seat proposals (person files)
-- [~] Ecosystem screen (renders `data/scan/summary.json`; waiting on the rescan)
+- [x] Ecosystem screen (mainnet scan: 174 DAOs, 8,339 proposals)
 - [ ] Telegram notifications (account link by signature; window, shortfall, quiet seat, bond to recover)
 - [ ] UI pass: HIG structure, self-hosted fonts, legal pages, empty and error states
 
@@ -219,6 +219,7 @@ Source: [nearhackathon.com](https://nearhackathon.com/), [Social Money brief](ht
 | 2026-11-10 | Web app is Vite + React (static), not Next.js | Every screen reads public chain data and signs in the wallet; no server needed; faster to build and host |
 | 2026-11-10 | MyNearWallet only | The Meteor module needs Node's Buffer in the browser and crashes the app |
 | 2026-11-10 | pnpm overrides pin vite 8.3.6 / rolldown 1.2.16 | Keeps every install inside pnpm's minimum release age instead of waiving the check |
+| 2026-11-10 | App deployed to Vercel as a static build (`pnpm --filter @nutus/app deploy`) | Built locally from the monorepo; SPA rewrite in `app/public/vercel.json` |
 | 2026-11-10 | Hosted keeper = hourly GitHub Actions run | Free, no server; windows are 48 h, so hourly is plenty |
 | 2026-11-09 | Keeper never retries `needs_manual_filing` or short standing buffers | Both would fail again and burn gas until a person acts |
 | 2026-11-09 | Spec V2 needs a note: Sputnik kept the 1 NEAR bond when a proposal's execution **Failed** (proposal 0 on testnet) | V2 lists approve / reject / expire as refunding. A failed escalation would cost the bond float its bond; keep failures rare with preflight |
