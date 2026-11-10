@@ -77,7 +77,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 - [x] `sync_council` from DAO policy (also caches Group role members for role-based filers)
 
 **B**
-- [~] Fix-this builders: lane setup (budget from trailing spend) ✓, seat changes ✓, policy role grant ✓, `seed_records` builder ✓ (not yet drafted from history), standing from repeat series (described, not drafted)
+- [x] Fix-this builders: lane setup (budget from trailing spend) ✓, seat changes ✓, policy role grant ✓, `seed_records` drafted from approved history ✓, recurring pay drafted from repeat series ✓
 - [x] Setup screen: review → checks (balance, existing instance, AddProposal permission, council) → file via wallet
 - [x] Preflight: `storage_balance_of` (rewrites to storage_deposit + ft_transfer), DAO balance, missing NEAR recipient. Wrap-NEAR not done
 
@@ -91,7 +91,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 **B**
 - [x] Live testnet calls throughout
 - [x] Get-paid screen (tier and timing preview from lane + record)
-- [x] Council inbox (Object, Approve, release / escalate / settle / pay_due, short buffers, seat health, manual-filing list). Finalize-to-recover-bond not shown
+- [x] Council inbox (Object, Approve, release / escalate / settle / pay_due, short buffers, seat health, manual-filing list, finalize-to-recover-bond for expired escalations)
 - [x] Public board (views; the objection window as a live time bar)
 
 ## Phase 5: Integration tests and hardening
@@ -114,7 +114,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 - [x] Seat watch: silent in 60 days, freeze distance, drafted seat proposals (person files)
 - [x] Ecosystem screen (mainnet scan: 174 DAOs, 8,339 proposals)
 - [ ] Telegram notifications (account link by signature; window, shortfall, quiet seat, bond to recover)
-- [ ] UI pass: HIG structure, self-hosted fonts, legal pages, empty and error states
+- [~] UI pass: self-hosted fonts ✓, privacy and terms page ✓, empty and error states on every screen ✓; HIG structure not audited
 
 ## Phase 6: End-to-end, docs, submission (AB)
 - [ ] Run every flow on the testnet DAO with real transactions; log tx hashes below
@@ -222,6 +222,10 @@ Source: [nearhackathon.com](https://nearhackathon.com/), [Social Money brief](ht
 | 2026-11-10 | App deployed to Vercel as a static build (`pnpm --filter @nutus/app deploy`) | Built locally from the monorepo; SPA rewrite in `app/public/vercel.json` |
 | 2026-11-10 | Hosted keeper = hourly GitHub Actions run | Free, no server; windows are 48 h, so hourly is plenty |
 | 2026-11-09 | Keeper never retries `needs_manual_filing` or short standing buffers | Both would fail again and burn gas until a person acts |
+| 2026-11-10 | F2 keeps its count shape; the repeat series are exposed by `repeatSeries()` | Existing scan summaries and the numbers the pitch quotes stay valid |
+| 2026-11-10 | Report drafts `seed_records` from approved single payments and recurring pay from repeat series (median gap, one period of notice) | Both feed existing contract methods; a person still reviews and files them after setup |
+| 2026-11-10 | Council inbox offers Finalize when an escalated proposal is still `InProgress` past the DAO's `proposal_period` | The bond only returns on `act_proposal(Finalize)`; Sputnik enforces the DAO policy, which by default gives Finalize to the council |
+| 2026-11-10 | Privacy and terms page says the app is static, reads public chain data, and stores nothing; the wallet session stays in the browser | That is what the build does: no analytics, no server, no cookies |
 | 2026-11-09 | Spec V2 needs a note: Sputnik kept the 1 NEAR bond when a proposal's execution **Failed** (proposal 0 on testnet) | V2 lists approve / reject / expire as refunding. A failed escalation would cost the bond float its bond; keep failures rare with preflight |
 
 ## Testnet log
