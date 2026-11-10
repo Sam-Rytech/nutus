@@ -119,7 +119,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 ## Phase 6: End-to-end, docs, submission (AB)
 - [ ] Run every flow on the testnet DAO with real transactions; log tx hashes below
 - [ ] Every Fix-this proposal files and executes on the demo DAO
-- [ ] Preflight fixes an unregistered recipient end to end
+- [x] Preflight fixes an unregistered recipient end to end (DAO proposal 5; see testnet log). Not yet surfaced in the app
 - [x] README (setup, trust statement, how to run keeper)
 - [ ] Demo video (60s script in the plan)
 - [ ] PITCH.md trimmed to verified claims only
@@ -252,6 +252,8 @@ Source: [nearhackathon.com](https://nearhackathon.com/), [Social Money brief](ht
 | 2026-11-10 | Bond float topped up 2 NEAR (was 0.43 after the objection) | `DMwxGyc68DtHh7Kq62L3CihJ9bamuU54vnBTTbh51f5` | B |
 | 2026-11-10 | c2 + c3 approve DAO proposal 4 → c1 paid 10 tUSDC by the DAO, 1 NEAR bond back to the instance (float 3.43 NEAR) | `Fbb7ckfZ1Sb25PkG4RJXepmmyW8RLpQ2gZgpUjioBZ8A`, `4tGuNZWo4P76sdy1X9TspNKVwHw4G58dqq1nLshWPZnU` | B |
 | 2026-11-10 | settle_escalation(3) → Settled(approved); c1 record 1 job, source DaoProposal 4 | `BnwT5DEfPFG1UCUKFqxP9R49vnyQ1owcQzo249mkWLK3` | B |
+| 2026-11-10 | **Preflight end to end:** Transfer of 5 tUSDC to unregistered keeper.nutus-dev.testnet rewritten by `preflight()` into storage_deposit + ft_transfer (`packages/core/scripts/preflight-demo.ts`); c1 files it as DAO proposal 5 | `EZ13CyYoVUUyDLsdER5ZgkutXDcps2G3RpJfKt6D8Fun` | B |
+| 2026-11-10 | c2 + c3 approve proposal 5 → keeper registered (0.00125 NEAR) and paid 5 tUSDC; a plain Transfer would have failed after the vote | `6cEDooQnBcvSq1h38WhXtDDDtqGGua9wob6r3Em8enHJ`, `68yuqQcv6BsxajmXMb61p62QDnLeKJvB54FnDYN8Ws6x` | B |
 
 ## Blockers
 _None._ (Testnet moved to v2 with the escalation fix on 2026-11-09.)
