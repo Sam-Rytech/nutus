@@ -2,6 +2,13 @@ packages:
   - "packages/*"
   - "app"
 
-# esbuild (via tsx/vitest) verifies its platform binary in a postinstall script.
 allowBuilds:
+  # esbuild (via tsx/vitest) verifies its platform binary in a postinstall script.
   esbuild: true
+  # Native addon pulled in by wallet tooling; the pure-JS fallback is enough in a browser.
+  secp256k1: false
+
+# Stay on releases older than pnpm's minimum release age instead of waiving it.
+overrides:
+  vite: 8.3.6
+  rolldown: 1.2.16

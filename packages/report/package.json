@@ -1,0 +1,24 @@
+{
+  "name": "@nutus/report",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Nutus report: reads Sputnik DAO history over RPC and measures F1-F5 (lapsed small payouts, repeat payments, silent seats, failed executions, bounty use).",
+  "type": "module",
+  "exports": { ".": "./src/index.ts", "./browser": "./src/browser.ts" },
+  "bin": { "nutus-report": "src/cli.ts" },
+  "scripts": {
+    "scan": "tsx src/cli.ts scan",
+    "dao": "tsx src/cli.ts dao",
+    "test": "vitest run",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@nutus/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "tsx": "^4.23.0",
+    "typescript": "^5.9.0",
+    "vitest": "^5.1.0"
+  }
+}

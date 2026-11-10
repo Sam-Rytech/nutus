@@ -4,3 +4,7 @@ target/
 .env
 .env.*
 *.sqlite
+
+# Mainnet scan cache (regenerable: pnpm --filter @nutus/report scan)
+data/scan/daos/
+app/dist/
