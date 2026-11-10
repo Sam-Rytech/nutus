@@ -1,4 +1,4 @@
-import { allPayouts, allStanding, roleHealth, type Policy, type ProposalStatus } from "@nutus/core";
+import { allPayouts, allStanding, roleHealth, type Policy, type Proposal } from "@nutus/core";
 import { DAY, proposalsSince, seatsOf } from "@nutus/report/browser";
 import { useState } from "react";
 import { instanceId } from "../config.ts";
@@ -22,25 +22,26 @@ export function Council() {
     const [policy, recent] = await Promise.all([view<Policy>(config.dao, "get_policy"), proposalsSince(view, config.dao, now - 60n * DAY)]);
     const escalated = payouts.filter((p) => statusName(p.status) === "Escalated");
     const proposals = await Promise.all(
-      escalated.map((p) => view<{ status: ProposalStatus }>(config.dao, "get_proposal", { id: Number((p.status as { Escalated: { proposal_id: string } }).Escalated.proposal_id) })),
+      escalated.map((p) => view<Proposal>(config.dao, "get_proposal", { id: Number((p.status as { Escalated: { proposal_id: string } }).Escalated.proposal_id) })),
     );
     const seats = seatsOf({ dao: config.dao, policy, proposals: recent }, { now, from: now - 365n * DAY });
     const silent = seats?.filter((s) => s.silent).map((s) => s.member) ?? [];
-    return { config, payouts, standing, lanes, policy, health: roleHealth(policy, silent), silent, settled: new Map(escalated.map((p, i) => [p.id, proposals[i]!.status])), assessed: seats !== null };
+    const escalations = new Map(escalated.map((p, i) => [p.id, proposals[i]!]));
+    return { config, payouts, standing, lanes, policy, health: roleHealth(policy, silent), silent, escalations, settled: new Map(escalated.map((p, i) => [p.id, proposals[i]!.status])), assessed: seats !== null };
   }, [id]);
 
   if (d.error) return <div className="notice bad">Couldn't read {id}: {d.error}</div>;
   if (!d.data) return <p className="muted">Reading the inbox…</p>;
-  const { config, payouts, standing, lanes, health, silent, settled, assessed } = d.data;
+  const { config, payouts, standing, lanes, policy, health, silent, escalations, settled, assessed } = d.data;
   const now = nowNs();
   const member = accountId !== null && config.council.includes(accountId);
   const objectorsOf = (p: Payout) => lanes.find((l) => l.id === p.lane)?.objectors ?? config.council;
 
-  const act = async (key: string, method: string, args: Record<string, unknown>, tgas: number, done: string) => {
+  const act = async (key: string, method: string, args: Record<string, unknown>, tgas: number, done: string, receiver = id) => {
     setBusy(key);
     setMsg(null);
     try {
-      await call({ receiverId: id, method, args, tgas });
+      await call({ receiverId: receiver, method, args, tgas });
       setMsg({ ok: true, text: done });
       d.reload();
     } catch (e) {
@@ -55,6 +56,11 @@ export function Council() {
   const releasable = payouts.filter((p) => p.status === "Waiting" && p.tier === "Small" && now >= BigInt(p.deadline_ns));
   const escalatable = payouts.filter((p) => p.status === "Waiting" && p.tier === "Medium" && now >= BigInt(p.deadline_ns));
   const settleable = payouts.filter((p) => { const s = settled.get(p.id); return s && s !== "InProgress"; });
+  const escalated = payouts.filter((p) => statusName(p.status) === "Escalated");
+  const expired = escalated.filter((p) => {
+    const e = escalations.get(p.id);
+    return e?.status === "InProgress" && BigInt(e.submission_time) + BigInt(policy.proposal_period) < now;
+  });
   const manual = payouts.filter((p) => statusName(p.status) === "Objected");
   const due = standing.filter((s) => s.state !== "Ended" && !s.in_flight && BigInt(s.next_due_ns) <= now);
   const short = due.filter((s) => s.state === "Active" && BigInt(s.buffer) < BigInt(s.amount));
@@ -125,6 +131,34 @@ export function Council() {
           {short.includes(s) ? <span className="small" style={{ color: "var(--brick)" }}>Its buffer is short: the DAO needs to top it up.</span> : <button className="btn quiet" disabled={!accountId || busy !== null} onClick={() => act(`p${s.id}`, "pay_due", { standing_id: s.id }, 100, "Paid.")}>Pay now</button>}
         </div>
       ))}
+
+      {escalated.length > 0 && (
+        <>
+          <h2>Escalated to the DAO ({escalated.length})</h2>
+          <p className="small muted">These payouts became normal DAO proposals. If one expires without a decision, finalizing it returns the bond to the instance. The DAO's policy decides who may finalize; by default that is the council.</p>
+          <div className="payouts">
+            {escalated.map((p) => {
+              const e = escalations.get(p.id);
+              const pid = (p.status as { Escalated: { proposal_id: string } }).Escalated.proposal_id;
+              return (
+                <PayoutRow
+                  key={p.id}
+                  p={p}
+                  actions={
+                    expired.includes(p) ? (
+                      <button className="btn quiet" disabled={!accountId || busy !== null} onClick={() => act(`f${p.id}`, "act_proposal", { id: Number(pid), action: "Finalize", proposal: e!.kind }, 100, "Finalized. The bond is back with the instance.", config.dao)}>
+                        {busy === `f${p.id}` ? "Finalizing…" : "Finalize to recover the bond"}
+                      </button>
+                    ) : (
+                      <span className="small muted">Proposal {pid} {e?.status === "InProgress" ? "is still open in the DAO" : e ? `is ${e.status}` : "couldn't be read"}.</span>
+                    )
+                  }
+                />
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {manual.length > 0 && (
         <>
