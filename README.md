@@ -23,8 +23,8 @@ The DAO's own contract is never changed.
 | Factory | `v2.nutus-dev.testnet` |
 | Test token (tUSDC) | `tusdc.nutus-dev.testnet` |
 | Web app | https://nutus.vercel.app |
-| Keeper | GitHub Actions, hourly ([keeper.yml](.github/workflows/keeper.yml)), as `keeper.nutus-dev.testnet` |
-| Telegram bot | Vercel functions `/api/telegram` + `/api/tick`, ticked every 15 min ([notify.yml](.github/workflows/notify.yml)) |
+| Keeper | Inside `/api/tick` every 5 min (cron-job.org), as `keeper.nutus-dev.testnet`; GitHub Actions ([keeper.yml](.github/workflows/keeper.yml)) as backup |
+| Telegram bot | Vercel functions `/api/telegram` (instant replies) + `/api/tick` (alerts, every 5 min) |
 
 Every testnet transaction we ran, with hashes: [docs/PROGRESS.md § Testnet log](docs/PROGRESS.md#testnet-log). Addresses: [deployments/testnet.env](deployments/testnet.env).
 

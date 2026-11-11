@@ -228,6 +228,8 @@ Source: [nearhackathon.com](https://nearhackathon.com/), [Social Money brief](ht
 | 2026-11-11 | Alerts still come from a 15-min tick (GitHub Action → `/api/tick`), webhook and tick secrets derived from the bot token | Vercel's free cron runs once a day; deriving secrets means nothing extra to share |
 | 2026-11-11 | App deploys as Vercel prebuilt output (`app/scripts/vercel-output.mjs`, esbuild bundles the functions) | The functions import workspace TypeScript packages that Vercel's builder won't compile |
 | 2026-11-11 | Record-seed drafts leave out `ft_transfer_call` payments | Those fund contracts (the factory at setup), not people; `seed_records` trusts the ids, so the draft must be right |
+| 2026-11-11 | Keeper and alerts run from `/api/tick`, called every 5 min by cron-job.org; the GitHub schedules stay as backup | GitHub ran the "hourly" keeper every 4–7 h and the 15-min notifier not at all; every keeper call is idempotent, so two callers are safe |
+| 2026-11-11 | Keeper reads both standing view shapes (`in_flight` and the deployed v2's `sending`) | The testnet v2 instance code predates `in_flight` / `resolve_stuck_*`; the keeper had skipped every recurring payment as "in flight" |
 | 2026-11-10 | Hosted keeper = hourly GitHub Actions run | Free, no server; windows are 48 h, so hourly is plenty |
 | 2026-11-09 | Keeper never retries `needs_manual_filing` or short standing buffers | Both would fail again and burn gas until a person acts |
 | 2026-11-10 | F2 keeps its count shape; the repeat series are exposed by `repeatSeries()` | Existing scan summaries and the numbers the pitch quotes stay valid |
@@ -271,6 +273,9 @@ Source: [nearhackathon.com](https://nearhackathon.com/), [Social Money brief](ht
 | 2026-11-11 | **Fix this: record seed** drafted by `packages/report/scripts/draft-fixes.ts` from the demo DAO's history; c2 files proposal 6, c1 + c3 approve → keeper +1 job (proposal 5); c1 (4) and nutus-fund5 (3) already counted, skipped | `583bFzNeFnzw6GnqCgkweX7AaBEqBnfLVxuoJMKfeoKo`, `FnzMRkqj1FPqAESydf7x9nEAzVSRkSLEAANifjEDuGKV`, `G7oyUnV9cvXtvFicVouPusrtGLuZTEzYudYTcorqEdaJ` | B |
 | 2026-11-11 | **Fix this: recurring pay**: proposal 7 adds recurring payment #0 (5 tUSDC weekly to c3, 1 period notice locked) | `6tsd7N7uinoBG6tNB9CFcKyPrtr4ZLyzw81cTAtpZqmD`, `8wY1jhLHQdYV6kZuAyFafng16bjPqFZM1rcsdXVw1H9U`, `7CVzEqtEshF1KuUfBtCNbcvxWk3WW11gJuhTBAV3XTdm` | B |
 | 2026-11-11 | Proposal 8 funds #0's buffer with 20 tUSDC (`ft_transfer_call` … `fund_standing:0`) | `EqBbo5FAHmN1oacwUWGNy3EQKeTa4TJhFwW3jjSKJ14k`, `FoKxtxj8fCSq6WLLRp1ttZ4hpHMsmuGXhp6SPYCPddVo`, `HYPy85uY4xbSNqPjCDdsopUTmwdVV7HUEK5sCvpNdg8L` | B |
+| 2026-11-11 | **Recurring pay runs:** the keeper (now inside `/api/tick`, timed by cron-job.org) pays #0's first 5 tUSDC to c3; next due 18 Nov | `9gaPg3ZnS7ynNe3sdgPrfpukQ6ew8WkukXf5eyUnQZBE` | AB |
 
 ## Blockers
-_None._ (Testnet moved to v2 with the escalation fix on 2026-11-09.)
+
+- **Testnet instance is a version behind the source.** The v2 code hash (`3PpH8oo5…`, 9 Nov) predates `in_flight` and `resolve_stuck_payout` / `resolve_stuck_standing`; the ABI in `packages/core/abi` describes the newer code. Everything else matches. Redeploying means a new global hash, a new factory and a new instance (scripts/testnet-redeploy.sh); not needed for the demo
+(Testnet moved to v2 with the escalation fix on 2026-11-09.)
