@@ -25,7 +25,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | Core (builders, preflight, maths) | B | [x] `packages/core`: ABI types, client, threshold maths, builders, preflight (19 tests, live-checked) |
 | Web app | B | [~] all six screens live at https://nutus.vercel.app (testnet v2); wallet signing verified on testnet (file, object, approve via Meteor) |
 | Seat watch | B | [x] silent seats + freeze distance in the report and the council inbox; seat changes drafted, never filed |
-| Notifications | B | [~] `packages/notify` + `.github/workflows/notify.yml` (every 15 min); waiting on the bot token and chat id |
+| Notifications | B | [x] `packages/notify` + `.github/workflows/notify.yml` (every 15 min), live in the council Telegram group (@nutusalertbot) |
 | Testnet end-to-end | AB | [ ] |
 | Docs, video, pitch | AB | [ ] |
 
@@ -113,7 +113,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 **B**
 - [x] Seat watch: silent in 60 days, freeze distance, drafted seat proposals (person files)
 - [x] Ecosystem screen (mainnet scan: 174 DAOs, 8,339 proposals)
-- [~] Telegram notifications: new payout in its window, escalation, expired proposal to finalize, short recurring payment, quiet seat; `/status` and `/start`. Posts to one council group chat (no per-member account link)
+- [x] Telegram notifications: new payout in its window, escalation, expired proposal to finalize, short recurring payment, quiet seat; `/status` and `/start`. Posts to one council group chat (no per-member account link)
 - [~] UI pass: self-hosted fonts ✓, privacy and terms page ✓, empty and error states on every screen ✓; HIG structure not audited
 
 ## Phase 6: End-to-end, docs, submission (AB)
@@ -263,6 +263,7 @@ Source: [nearhackathon.com](https://nearhackathon.com/), [Social Money brief](ht
 | 2026-11-10 | settle_escalation(3) → Settled(approved); c1 record 1 job, source DaoProposal 4 | `BnwT5DEfPFG1UCUKFqxP9R49vnyQ1owcQzo249mkWLK3` | B |
 | 2026-11-10 | **Preflight end to end:** Transfer of 5 tUSDC to unregistered keeper.nutus-dev.testnet rewritten by `preflight()` into storage_deposit + ft_transfer (`packages/core/scripts/preflight-demo.ts`); c1 files it as DAO proposal 5 | `EZ13CyYoVUUyDLsdER5ZgkutXDcps2G3RpJfKt6D8Fun` | B |
 | 2026-11-10 | c2 + c3 approve proposal 5 → keeper registered (0.00125 NEAR) and paid 5 tUSDC; a plain Transfer would have failed after the vote | `6cEDooQnBcvSq1h38WhXtDDDtqGGua9wob6r3Em8enHJ`, `68yuqQcv6BsxajmXMb61p62QDnLeKJvB54FnDYN8Ws6x` | B |
+| 2026-11-11 | c2 files payout #5 (2 tUSDC to c3); the notifier posts it to the council Telegram group | `EUF6wEFXDLTctyUT5SxiShAsu6mFtntdUsJeHZWkwBcS` | B |
 
 ## Blockers
 _None._ (Testnet moved to v2 with the escalation fix on 2026-11-09.)
