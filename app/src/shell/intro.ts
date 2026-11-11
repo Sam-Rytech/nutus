@@ -28,12 +28,24 @@ export function useAfterIntro(): boolean {
       if (ric) ric(cb, { timeout: 1500 });
       else setTimeout(cb, 300);
     };
-    const go = () => idle(() => !cancelled && setOk(true));
-    if (window.__nutusIntro !== "running") go();
-    else addEventListener("nutus:intro-done", go, { once: true });
+    let started = false;
+    const go = () => {
+      if (started) return;
+      started = true;
+      idle(() => !cancelled && setOk(true));
+    };
+    // The "done" event can fire before this listener exists, so also check the
+    // flag the intro sets, and never wait more than a few seconds regardless.
+    const check = () => window.__nutusIntro !== "running" && go();
+    check();
+    addEventListener("nutus:intro-done", go);
+    const poll = window.setInterval(check, 250);
+    const cap = window.setTimeout(go, 5000);
     return () => {
       cancelled = true;
       removeEventListener("nutus:intro-done", go);
+      clearInterval(poll);
+      clearTimeout(cap);
     };
   }, []);
   return ok;
