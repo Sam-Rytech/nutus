@@ -5,7 +5,7 @@
   "description": "Nutus Telegram alerts for a council chat: new payouts in their window, objections, expired escalations to finalize, short recurring payments, seats going quiet.",
   "type": "module",
   "scripts": {
-    "start": "tsx src/main.ts",
+    "preview": "tsx src/main.ts",
     "test": "vitest run",
     "lint": "tsc --noEmit"
   },

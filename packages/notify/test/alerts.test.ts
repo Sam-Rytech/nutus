@@ -40,12 +40,12 @@ describe("alerts", () => {
     const s = snap({ payouts: [payout({})] });
     expect(keys(s, T0 - HOUR, T0 + 1n)).toEqual(["filed:1"]);
     expect(keys(s, T0 + 1n, T0 + HOUR)).toEqual([]);
-    expect(alerts(s, T0 - HOUR, T0 + 1n)[0]!.text).toContain("pays in 47 h unless a council member objects");
+    expect(alerts(s, T0 - HOUR, T0 + 1n)[0]!.text).toContain("pays automatically in 47 h unless a council member objects");
   });
 
   it("asks for an approval on a medium payout", () => {
     const s = snap({ payouts: [payout({ tier: "Medium", deadline_ns: String(T0 + 7n * DAY) })] });
-    expect(alerts(s, T0, T0 + HOUR)[0]!.text).toContain("needs one council approval");
+    expect(alerts(s, T0, T0 + HOUR)[0]!.text).toContain("needs your approval");
   });
 
   it("skips payouts that already paid", () => {
@@ -86,12 +86,12 @@ describe("status", () => {
     });
     const text = status(s, T0 + HOUR);
     expect(text).toContain("Paying unless someone objects (1)");
-    expect(text).toContain("#1 10 tUSDC to <code>r.testnet</code>, in 47 h");
+    expect(text).toContain("#1 · 10 tUSDC to <code>r.testnet</code> · in 47 h");
     expect(text).toContain("Waiting for one approval (1)");
     expect(text).not.toContain("No vote in 60 days");
   });
 
   it("says when nothing is waiting", () => {
-    expect(status(snap({}), T0)).toContain("Nothing needs the council right now.");
+    expect(status(snap({}), T0)).toContain("Nothing right now.");
   });
 });

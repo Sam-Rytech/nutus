@@ -1,7 +1,7 @@
 // What the council chat hears about. Pure: a snapshot of the instance and its
-// DAO in, messages out. Each alert fires once, in the run whose window
-// [from, to) contains the moment it became true, so a run needs to remember
-// nothing but when it last ran.
+// DAO in, messages out. Each alert fires once, in the tick whose window
+// [from, to) contains the moment it became true, so a tick needs to remember
+// nothing but when the last one ran.
 
 import type { Instance, Policy, Proposal } from "@nutus/core";
 
@@ -31,15 +31,35 @@ export interface Snapshot {
   tokens: Map<string, TokenMeta>;
 }
 
+/** The kinds of alert a chat can turn on or off. */
+export const KINDS = ["filed", "escalated", "expired", "short", "quiet"] as const;
+export type Kind = (typeof KINDS)[number];
+export const KIND_LABEL: Record<Kind, string> = {
+  filed: "New payouts",
+  escalated: "Payouts sent to a DAO vote",
+  expired: "Expired votes to finalize",
+  short: "Recurring pay running short",
+  quiet: "Council seats gone quiet",
+};
+
+export interface LinkButton {
+  text: string;
+  url: string;
+}
+
 export interface Alert {
   /** Stable id, for tests and logs. */
   key: string;
+  kind: Kind;
+  /** One line, for digests. */
+  line: string;
+  /** The full message, for alerts sent as they happen. */
   text: string;
+  buttons: LinkButton[];
 }
 
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+export const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const code = (s: string) => `<code>${esc(s)}</code>`;
-const link = (href: string, label: string) => `<a href="${esc(href)}">${esc(label)}</a>`;
 
 export function amount(raw: string | bigint, token: string, tokens: Map<string, TokenMeta>): string {
   const m = token === "near" ? { decimals: 24, symbol: "NEAR" } : tokens.get(token) ?? { decimals: 0, symbol: token };
@@ -57,12 +77,13 @@ export function inWords(ns: bigint): string {
   return `${(ns / 60_000_000_000n) || 1n} min`;
 }
 
-const page = (s: Snapshot, path: string) => {
-  const q = s.app.includes("nutus.vercel.app") && s.instance === "nutus-demo.v2.nutus-dev.testnet" ? "" : `?instance=${encodeURIComponent(s.instance)}`;
+export const appPage = (s: Pick<Snapshot, "app" | "instance">, path: string) => {
+  const q = s.instance === "nutus-demo.v2.nutus-dev.testnet" ? "" : `?instance=${encodeURIComponent(s.instance)}`;
   return `${s.app.replace(/\/$/, "")}${path}${q}`;
 };
 
 const within = (t: bigint, from: bigint, to: bigint) => t >= from && t < to;
+const lane = (id: string) => id.charAt(0).toUpperCase() + id.slice(1);
 
 /** Last time each council member voted, judged by the submission time of the newest proposal they voted on. */
 export function lastVotes(s: Snapshot): Map<string, bigint | null> {
@@ -79,41 +100,63 @@ export function lastVotes(s: Snapshot): Map<string, bigint | null> {
 
 export function alerts(s: Snapshot, from: bigint, to: bigint): Alert[] {
   const out: Alert[] = [];
-  const amt = (p: { amount: string; token: string }) => amount(p.amount, p.token, s.tokens);
+  const amt = (p: { amount: string; token: string }) => esc(amount(p.amount, p.token, s.tokens));
+  const inbox = { text: "Open the council inbox", url: appPage(s, "/council") };
 
   for (const p of s.payouts) {
-    // New payout: announced in the run that sees it filed.
     if (p.status === "Waiting" && within(BigInt(p.filed_at_ns), from, to)) {
-      const left = inWords(BigInt(p.deadline_ns) - to > 0n ? BigInt(p.deadline_ns) - to : 0n);
-      out.push(
-        p.tier === "Small"
-          ? {
-              key: `filed:${p.id}`,
-              text: `New payout #${p.id}: <b>${esc(amt(p))}</b> to ${code(p.recipient)} (${esc(p.lane)}). It pays in ${left} unless a council member objects.\n${link(p.link, "The work")} · ${link(page(s, "/council"), "Object in the inbox")}`,
-            }
-          : {
-              key: `filed:${p.id}`,
-              text: `Payout #${p.id} needs one council approval: <b>${esc(amt(p))}</b> to ${code(p.recipient)} (${esc(p.lane)}). If nobody approves in ${left}, it goes to a DAO vote.\n${link(p.link, "The work")} · ${link(page(s, "/council"), "Approve in the inbox")}`,
-            },
-      );
+      const left = inWords(BigInt(p.deadline_ns) > to ? BigInt(p.deadline_ns) - to : 0n);
+      const small = p.tier === "Small";
+      out.push({
+        key: `filed:${p.id}`,
+        kind: "filed",
+        line: small
+          ? `Payout #${p.id}: <b>${amt(p)}</b> to ${code(p.recipient)}, pays in ${left} unless someone objects`
+          : `Payout #${p.id}: <b>${amt(p)}</b> to ${code(p.recipient)}, needs one approval`,
+        text: [
+          small ? `<b>New payout #${p.id}</b>` : `<b>Payout #${p.id} needs your approval</b>`,
+          `<b>${amt(p)}</b> to ${code(p.recipient)}`,
+          `${esc(lane(p.lane))} lane${p.memo ? ` · ${esc(p.memo)}` : ""}`,
+          "",
+          small
+            ? `It pays automatically in ${left} unless a council member objects.`
+            : `One council approval pays it. If nobody approves in ${left}, it goes to a DAO vote.`,
+        ].join("\n"),
+        buttons: [{ text: "See the work", url: p.link }, small ? { text: "Object", url: inbox.url } : { text: "Approve", url: inbox.url }],
+      });
     }
 
     const e = s.escalations.get(p.id);
     if (!e) continue;
     const submitted = BigInt(e.submission_time);
-    // Escalated: a DAO proposal was filed for it (an objection or a medium timeout).
     if (within(submitted, from, to)) {
       out.push({
         key: `escalated:${p.id}`,
-        text: `Payout #${p.id} (${esc(amt(p))} to ${code(p.recipient)}) is now DAO proposal ${e.id}. It pays only if the DAO votes for it within ${inWords(BigInt(s.policy.proposal_period))}.`,
+        kind: "escalated",
+        line: `Payout #${p.id} (${amt(p)} to ${code(p.recipient)}) is now DAO proposal ${e.id}`,
+        text: [
+          `<b>Payout #${p.id} went to a DAO vote</b>`,
+          `<b>${amt(p)}</b> to ${code(p.recipient)}`,
+          "",
+          `It's now DAO proposal ${e.id}. It pays only if the DAO votes for it within ${inWords(BigInt(s.policy.proposal_period))}.`,
+        ].join("\n"),
+        buttons: [inbox],
       });
     }
-    // Expired without a decision: someone has to finalize it to get the bond back.
     const expires = submitted + BigInt(s.policy.proposal_period);
     if (e.status === "InProgress" && within(expires, from, to)) {
+      const bond = esc(amount(s.policy.proposal_bond, "near", s.tokens));
       out.push({
         key: `expired:${p.id}`,
-        text: `DAO proposal ${e.id} (payout #${p.id}) expired without a decision. Finalize it to return the ${esc(amount(s.policy.proposal_bond, "near", s.tokens))} bond to Nutus.\n${link(page(s, "/council"), "Finalize in the inbox")}`,
+        kind: "expired",
+        line: `DAO proposal ${e.id} (payout #${p.id}) expired: finalize it to recover the ${bond} bond`,
+        text: [
+          `<b>DAO proposal ${e.id} expired</b>`,
+          `Nobody decided on payout #${p.id} in time.`,
+          "",
+          `Finalize it to return the ${bond} bond to Nutus.`,
+        ].join("\n"),
+        buttons: [{ text: "Finalize", url: inbox.url }],
       });
     }
   }
@@ -122,9 +165,19 @@ export function alerts(s: Snapshot, from: bigint, to: bigint): Alert[] {
     if (r.state !== "Active" || r.in_flight) continue;
     const due = BigInt(r.next_due_ns);
     if (within(due, from, to) && BigInt(r.buffer) < BigInt(r.amount)) {
+      const held = esc(amount(r.buffer, r.token, s.tokens));
+      const needs = esc(amount(r.amount, r.token, s.tokens));
       out.push({
         key: `short:${r.id}:${r.next_due_ns}`,
-        text: `Recurring payment #${r.id} to ${code(r.recipient)} is due, but its buffer holds ${esc(amount(r.buffer, r.token, s.tokens))} of the ${esc(amount(r.amount, r.token, s.tokens))} it needs. The DAO needs to top it up.`,
+        kind: "short",
+        line: `Recurring payment #${r.id} to ${code(r.recipient)} is due but short: ${held} of ${needs}`,
+        text: [
+          `<b>Recurring payment #${r.id} is short</b>`,
+          `${code(r.recipient)} is due ${needs}; the buffer holds ${held}.`,
+          "",
+          "The DAO needs to top it up before it can pay.",
+        ].join("\n"),
+        buttons: [inbox],
       });
     }
   }
@@ -133,7 +186,10 @@ export function alerts(s: Snapshot, from: bigint, to: bigint): Alert[] {
     if (t !== null && within(t + QUIET_AFTER, from, to)) {
       out.push({
         key: `quiet:${m}`,
-        text: `${code(m)} hasn't voted on a DAO proposal in 60 days. Silent seats are how councils lose the votes to pay anyone.\n${link(`${s.app.replace(/\/$/, "")}/report?dao=${encodeURIComponent(s.dao)}&net=testnet`, "See the DAO report")}`,
+        kind: "quiet",
+        line: `${code(m)} hasn't voted in 60 days`,
+        text: [`<b>A council seat has gone quiet</b>`, `${code(m)} hasn't voted on a DAO proposal in 60 days.`, "", "Silent seats are how councils lose the votes to pay anyone."].join("\n"),
+        buttons: [{ text: "See the DAO report", url: `${s.app.replace(/\/$/, "")}/report?dao=${encodeURIComponent(s.dao)}&net=testnet` }],
       });
     }
   }
@@ -142,8 +198,7 @@ export function alerts(s: Snapshot, from: bigint, to: bigint): Alert[] {
 
 /** The reply to /status: what needs the council right now. */
 export function status(s: Snapshot, now: bigint): string {
-  const lines: string[] = [];
-  const amt = (p: { amount: string; token: string }) => amount(p.amount, p.token, s.tokens);
+  const amt = (p: { amount: string; token: string }) => esc(amount(p.amount, p.token, s.tokens));
   const waiting = s.payouts.filter((p) => p.status === "Waiting");
   const small = waiting.filter((p) => p.tier === "Small" && BigInt(p.deadline_ns) > now);
   const medium = waiting.filter((p) => p.tier === "Medium");
@@ -154,25 +209,13 @@ export function status(s: Snapshot, now: bigint): string {
   const short = s.standing.filter((r) => r.state === "Active" && !r.in_flight && BigInt(r.next_due_ns) <= now && BigInt(r.buffer) < BigInt(r.amount));
   const quiet = [...lastVotes(s)].filter(([, t]) => t === null || t + QUIET_AFTER <= now).map(([m]) => m);
 
-  lines.push(`<b>Nutus</b> · ${code(s.instance)}`);
-  if (small.length) {
-    lines.push(`\n<b>Paying unless someone objects (${small.length})</b>`);
-    for (const p of small) lines.push(`#${p.id} ${esc(amt(p))} to ${code(p.recipient)}, in ${inWords(BigInt(p.deadline_ns) - now)}`);
-  }
-  if (medium.length) {
-    lines.push(`\n<b>Waiting for one approval (${medium.length})</b>`);
-    for (const p of medium) lines.push(`#${p.id} ${esc(amt(p))} to ${code(p.recipient)}`);
-  }
-  if (expired.length) {
-    lines.push(`\n<b>Expired, finalize to recover the bond (${expired.length})</b>`);
-    for (const p of expired) lines.push(`#${p.id} → DAO proposal ${s.escalations.get(p.id)!.id}`);
-  }
-  if (short.length) {
-    lines.push(`\n<b>Recurring payments short (${short.length})</b>`);
-    for (const r of short) lines.push(`#${r.id} to ${code(r.recipient)}`);
-  }
-  if (quiet.length) lines.push(`\n<b>No vote in 60 days</b>\n${quiet.map(code).join(", ")}`);
-  if (lines.length === 1) lines.push("Nothing needs the council right now.");
-  lines.push(`\n${link(page(s, "/council"), "Open the council inbox")}`);
-  return lines.join("\n");
+  const parts: string[] = ["<b>What needs the council</b>"];
+  const section = (title: string, rows: string[]) => rows.length && parts.push(`\n<b>${title}</b>\n${rows.map((r) => `• ${r}`).join("\n")}`);
+  section(`Paying unless someone objects (${small.length})`, small.map((p) => `#${p.id} · ${amt(p)} to ${code(p.recipient)} · in ${inWords(BigInt(p.deadline_ns) - now)}`));
+  section(`Waiting for one approval (${medium.length})`, medium.map((p) => `#${p.id} · ${amt(p)} to ${code(p.recipient)}`));
+  section(`Expired, finalize to recover the bond (${expired.length})`, expired.map((p) => `#${p.id} · DAO proposal ${s.escalations.get(p.id)!.id}`));
+  section(`Recurring pay short (${short.length})`, short.map((r) => `#${r.id} to ${code(r.recipient)}`));
+  section("No vote in 60 days", quiet.map(code));
+  if (parts.length === 1) parts.push("\nNothing right now.");
+  return parts.join("\n");
 }
