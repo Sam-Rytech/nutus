@@ -25,7 +25,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | Core (builders, preflight, maths) | B | [x] `packages/core`: ABI types, client, threshold maths, builders, preflight (19 tests, live-checked) |
 | Web app | B | [~] all six screens live at https://nutus.vercel.app (testnet v2); wallet signing verified on testnet (file, object, approve via Meteor) |
 | Seat watch | B | [x] silent seats + freeze distance in the report and the council inbox; seat changes drafted, never filed |
-| Notifications | B | [x] `packages/notify` + `.github/workflows/notify.yml` (every 15 min), live in the council Telegram group (@nutusalertbot) |
+| Notifications | B | [x] @nutusalertbot: webhook + tick functions on nutus.vercel.app, per-chat settings in Upstash Redis, 15-min tick from `.github/workflows/notify.yml` |
 | Testnet end-to-end | AB | [ ] |
 | Docs, video, pitch | AB | [ ] |
 
@@ -223,8 +223,10 @@ Source: [nearhackathon.com](https://nearhackathon.com/), [Social Money brief](ht
 | 2026-11-10 | Record-seed drafts split into proposals of ≤ 200 ids (`seedBatches`) | The instance's `MAX_SEED_POINTS` is 200; one bigger proposal would pass the vote and fail with TOO_MANY_POINTS |
 | 2026-11-10 | Recurring-pay drafts start at the first due date after today, and skip series paid < 7 days apart | `pay_due` pays every elapsed period at once, so a past `first_due_ns` back-pays; same-week repeats are batches, not salaries |
 | 2026-11-10 | Vercel deploys only from the CLI (`vercel.json`: git deploys off) | The GitHub integration built the repo root on every push and replaced the site with a 404 |
-| 2026-11-11 | Telegram alerts go to one council group chat, not per-member DMs linked by signature | No server or database to hold links; the council already shares a chat; everything posted is public chain data |
-| 2026-11-11 | Notifier is a scheduled GitHub Action that remembers only its last run time (Actions cache) | Each alert fires in the run whose window contains the moment it became true; commands are read with getUpdates, so no webhook server |
+| 2026-11-11 | Telegram: any chat opts in with /start (group or private), no account link by signature | Everything posted is public chain data; nothing to prove |
+| 2026-11-11 | Bot answers through a Vercel webhook, settings in Upstash Redis; per chat: which of 5 alerts, and as they happen / hourly / 6-hourly / daily summaries; group admins only | A scheduled poller answered commands up to 15 min late, which made buttons unusable |
+| 2026-11-11 | Alerts still come from a 15-min tick (GitHub Action → `/api/tick`), webhook and tick secrets derived from the bot token | Vercel's free cron runs once a day; deriving secrets means nothing extra to share |
+| 2026-11-11 | App deploys as Vercel prebuilt output (`app/scripts/vercel-output.mjs`, esbuild bundles the functions) | The functions import workspace TypeScript packages that Vercel's builder won't compile |
 | 2026-11-10 | Hosted keeper = hourly GitHub Actions run | Free, no server; windows are 48 h, so hourly is plenty |
 | 2026-11-09 | Keeper never retries `needs_manual_filing` or short standing buffers | Both would fail again and burn gas until a person acts |
 | 2026-11-10 | F2 keeps its count shape; the repeat series are exposed by `repeatSeries()` | Existing scan summaries and the numbers the pitch quotes stay valid |
