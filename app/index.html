@@ -24,17 +24,20 @@
       /* Loading animation: the mark drops in, then each letter, then the view
          zooms through the gap between the strokes and the page pops out. */
       #intro { position: fixed; inset: 0; z-index: 100; background: #000; display: grid; place-items: center; overflow: hidden; }
-      #intro svg { width: min(72vw, 520px); height: auto; overflow: visible; transform-origin: 21.9% 50%; }
-      #intro .mk path { transform-box: fill-box; animation: drop 0.75s cubic-bezier(0.34, 1.45, 0.64, 1) both; }
-      #intro .mk path:nth-child(2) { animation-delay: 0.12s; }
-      #intro .l { transform-box: fill-box; animation: dropL 0.6s cubic-bezier(0.34, 1.5, 0.64, 1) both; animation-delay: calc(0.62s + var(--i) * 0.09s); }
-      /* letters sit in a group scaled to ~4%, so their drop distance is in those local units */
-      @keyframes dropL { from { transform: translateY(-40000px); opacity: 0; } 40% { opacity: 1; } to { transform: none; opacity: 1; } }
-      @keyframes drop { from { transform: translateY(-140vh); opacity: 0; } 40% { opacity: 1; } to { transform: none; opacity: 1; } }
+      /* Every moving piece is its own HTML element, so the browser can animate it on the compositor
+         even while the app's JavaScript is busy starting up. Geometry matches the 420x96 lockup. */
+      #intro .stage { position: relative; width: min(72vw, 520px); aspect-ratio: 420 / 96; transform-origin: 21.9% 50%; will-change: transform; }
+      #intro .mark { position: absolute; left: 0; top: 0; width: 43.81%; height: 100%; }
+      #intro .word { position: absolute; left: 48.93%; top: 18.75%; width: 49.69%; height: 61.28%; }
+      #intro .p { position: absolute; inset: 0; will-change: transform, opacity; animation: drop 0.75s cubic-bezier(0.34, 1.45, 0.64, 1) both; }
+      #intro .p svg { display: block; width: 100%; height: 100%; overflow: visible; }
+      #intro .s2 { animation-delay: 0.12s; }
+      #intro .l { animation-duration: 0.6s; animation-timing-function: cubic-bezier(0.34, 1.5, 0.64, 1); animation-delay: calc(0.62s + var(--i) * 0.09s); }
+      @keyframes drop { from { transform: translateY(-110vh); opacity: 0; } 40% { opacity: 1; } to { transform: none; opacity: 1; } }
       html:not(.intro):not(.intro-pop) #intro { display: none; }
       html.intro body { overflow: hidden; }
       html.intro #root { opacity: 0; }
-      #intro.zoom svg { animation: zoom 0.9s cubic-bezier(0.7, 0, 0.84, 0) forwards; }
+      #intro.zoom .stage { animation: zoom 0.9s cubic-bezier(0.7, 0, 0.84, 0) forwards; }
       #intro.zoom { animation: clear 0.9s ease-in forwards; }
       @keyframes zoom { to { transform: scale(70); } }
       @keyframes clear { 0%, 55% { background: #000; } 100% { background: transparent; } }
@@ -43,11 +46,9 @@
       @media (prefers-reduced-motion: reduce) { #intro { display: none; } html.intro #root { opacity: 1; } }
     </style>
     <script>
-      // Show the intro once per browser session, and never with reduced motion.
+      // The intro plays on every full page load (moving between screens isn't one), never with reduced motion.
       (function () {
-        var seen = false;
-        try { seen = sessionStorage.getItem("nutus:intro") === "1"; sessionStorage.setItem("nutus:intro", "1"); } catch (e) {}
-        if (seen || matchMedia("(prefers-reduced-motion: reduce)").matches) { window.__nutusIntro = "done"; return; }
+        if (matchMedia("(prefers-reduced-motion: reduce)").matches) { window.__nutusIntro = "done"; return; }
         document.documentElement.classList.add("intro");
         window.__nutusIntro = "running";
         var start = performance.now(), ready = false, started = false;
@@ -55,7 +56,7 @@
           if (started) return;
           started = true;
           var el = document.getElementById("intro");
-          var wait = Math.max(0, 1500 - (performance.now() - start)); // let every letter land first
+          var wait = Math.max(0, 1800 - (performance.now() - start)); // the last letter lands at ~1.6 s; let it settle
           setTimeout(function () {
             if (el) el.classList.add("zoom");
             document.documentElement.classList.remove("intro");
@@ -75,7 +76,10 @@
   </head>
   <body>
     <div id="intro" aria-hidden="true">
-      <svg viewBox="0 0 420 96"><g class="mk" fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"><path d="M14 12L14 60A24 24 0 0 0 57.2 74.4L104 12"/><path d="M80 84L126.8 21.6A24 24 0 0 1 170 36L170 84"/></g><g transform="translate(201.4 75.2) scale(0.04085)"><path class="l l0" style="--i:0" fill="#13B5CB" d="M112 0V-1034H449V-889Q471 -925 508 -960Q544 -994 601 -1018Q657 -1040 738 -1040Q831 -1040 913 -1005Q996 -969 1048 -890Q1100 -812 1100 -685V0H758V-640Q758 -708 714 -743Q670 -777 612 -777Q575 -777 538 -763Q500 -748 477 -719Q453 -691 453 -648V0Z"/><path class="l l1" style="--i:1" fill="#FFFFFF" d="M1623 20Q1556 20 1487 -2Q1418 -24 1360 -66Q1302 -109 1267 -170Q1231 -232 1231 -312V-1034H1572V-358Q1572 -300 1612 -261Q1652 -223 1727 -223Q1799 -223 1841 -261Q1883 -298 1883 -360V-1034H2221V0H1967L1927 -209Q1908 -112 1857 -62Q1806 -13 1742 3Q1679 20 1623 20Z"/><path class="l l2" style="--i:2" fill="#FFFFFF" d="M2852 14Q2703 14 2621 -24Q2540 -62 2508 -128Q2477 -193 2477 -276V-801H2309V-1034H2489L2576 -1351H2817V-1036H3044V-801H2817L2818 -291Q2818 -260 2827 -245Q2836 -230 2854 -225Q2871 -220 2895 -220H3046V-15Q3025 -6 2981 4Q2937 14 2852 14Z"/><path class="l l3" style="--i:3" fill="#13B5CB" d="M3544 20Q3477 20 3408 -2Q3339 -24 3281 -66Q3223 -109 3188 -170Q3152 -232 3152 -312V-1034H3493V-358Q3493 -300 3533 -261Q3573 -223 3648 -223Q3720 -223 3762 -261Q3804 -298 3804 -360V-1034H4142V0H3888L3848 -209Q3829 -112 3778 -62Q3727 -13 3663 3Q3600 20 3544 20Z"/><path class="l l4" style="--i:4" fill="#FFFFFF" d="M4734 20Q4626 20 4523 -16Q4420 -52 4347 -131Q4274 -210 4253 -337H4545Q4558 -284 4592 -256Q4626 -228 4664 -218Q4703 -208 4732 -208Q4806 -208 4852 -229Q4898 -250 4898 -293Q4898 -329 4869 -349Q4841 -370 4770 -382L4603 -413Q4460 -440 4373 -513Q4286 -585 4285 -718Q4284 -813 4336 -889Q4388 -965 4489 -1009Q4590 -1054 4736 -1054Q4938 -1054 5057 -966Q5176 -878 5177 -723H4897Q4886 -776 4841 -804Q4795 -831 4732 -831Q4668 -831 4624 -810Q4581 -788 4581 -745Q4581 -712 4619 -692Q4657 -672 4740 -656L4891 -625Q4984 -602 5042 -564Q5100 -525 5132 -480Q5163 -435 5175 -390Q5186 -346 5186 -312Q5186 -205 5128 -131Q5069 -57 4967 -19Q4864 20 4734 20Z"/></g></svg>
+      <div class="stage">
+        <div class="mark"><span class="p s1"><svg viewBox="0 0 184 96"><path d="M14 12L14 60A24 24 0 0 0 57.2 74.4L104 12" fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="p s2"><svg viewBox="0 0 184 96"><path d="M80 84L126.8 21.6A24 24 0 0 1 170 36L170 84" fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+        <div class="word"><span class="p l" style="--i:0"><svg viewBox="100 -1400 5110 1440" preserveAspectRatio="none"><path fill="#13B5CB" d="M112 0V-1034H449V-889Q471 -925 508 -960Q544 -994 601 -1018Q657 -1040 738 -1040Q831 -1040 913 -1005Q996 -969 1048 -890Q1100 -812 1100 -685V0H758V-640Q758 -708 714 -743Q670 -777 612 -777Q575 -777 538 -763Q500 -748 477 -719Q453 -691 453 -648V0Z"/></svg></span><span class="p l" style="--i:1"><svg viewBox="100 -1400 5110 1440" preserveAspectRatio="none"><path fill="#FFFFFF" d="M1623 20Q1556 20 1487 -2Q1418 -24 1360 -66Q1302 -109 1267 -170Q1231 -232 1231 -312V-1034H1572V-358Q1572 -300 1612 -261Q1652 -223 1727 -223Q1799 -223 1841 -261Q1883 -298 1883 -360V-1034H2221V0H1967L1927 -209Q1908 -112 1857 -62Q1806 -13 1742 3Q1679 20 1623 20Z"/></svg></span><span class="p l" style="--i:2"><svg viewBox="100 -1400 5110 1440" preserveAspectRatio="none"><path fill="#FFFFFF" d="M2852 14Q2703 14 2621 -24Q2540 -62 2508 -128Q2477 -193 2477 -276V-801H2309V-1034H2489L2576 -1351H2817V-1036H3044V-801H2817L2818 -291Q2818 -260 2827 -245Q2836 -230 2854 -225Q2871 -220 2895 -220H3046V-15Q3025 -6 2981 4Q2937 14 2852 14Z"/></svg></span><span class="p l" style="--i:3"><svg viewBox="100 -1400 5110 1440" preserveAspectRatio="none"><path fill="#13B5CB" d="M3544 20Q3477 20 3408 -2Q3339 -24 3281 -66Q3223 -109 3188 -170Q3152 -232 3152 -312V-1034H3493V-358Q3493 -300 3533 -261Q3573 -223 3648 -223Q3720 -223 3762 -261Q3804 -298 3804 -360V-1034H4142V0H3888L3848 -209Q3829 -112 3778 -62Q3727 -13 3663 3Q3600 20 3544 20Z"/></svg></span><span class="p l" style="--i:4"><svg viewBox="100 -1400 5110 1440" preserveAspectRatio="none"><path fill="#FFFFFF" d="M4734 20Q4626 20 4523 -16Q4420 -52 4347 -131Q4274 -210 4253 -337H4545Q4558 -284 4592 -256Q4626 -228 4664 -218Q4703 -208 4732 -208Q4806 -208 4852 -229Q4898 -250 4898 -293Q4898 -329 4869 -349Q4841 -370 4770 -382L4603 -413Q4460 -440 4373 -513Q4286 -585 4285 -718Q4284 -813 4336 -889Q4388 -965 4489 -1009Q4590 -1054 4736 -1054Q4938 -1054 5057 -966Q5176 -878 5177 -723H4897Q4886 -776 4841 -804Q4795 -831 4732 -831Q4668 -831 4624 -810Q4581 -788 4581 -745Q4581 -712 4619 -692Q4657 -672 4740 -656L4891 -625Q4984 -602 5042 -564Q5100 -525 5132 -480Q5163 -435 5175 -390Q5186 -346 5186 -312Q5186 -205 5128 -131Q5069 -57 4967 -19Q4864 20 4734 20Z"/></svg></span></div>
+      </div>
     </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
