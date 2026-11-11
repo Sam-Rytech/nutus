@@ -163,12 +163,12 @@ th { font: 400 0.78rem var(--mono); color: var(--grey-500); }
 td strong { font-weight: 500; }
 .bar { height: 1px; background: var(--line-d2); min-width: 6rem; margin-top: 0.6rem; }
 .bar > i { display: block; height: 2px; margin-top: -0.5px; background: var(--tidal); }
-details { border-top: 1px solid var(--line-d); padding: 0.2rem 0; margin: 0; }
-details:last-of-type { border-bottom: 1px solid var(--line-d); }
-summary { cursor: pointer; padding: 1rem 0; list-style: none; font-weight: 500; }
-summary::-webkit-details-marker { display: none; }
-summary::before { content: "+"; display: inline-block; width: 1.4rem; color: var(--grey-500); font-weight: 300; transition: transform 0.3s var(--ease); }
-details[open] summary::before { transform: rotate(45deg); color: var(--tidal); }
+.ap details { border-top: 1px solid var(--line-d); padding: 0.2rem 0; margin: 0; }
+.ap details:last-of-type { border-bottom: 1px solid var(--line-d); }
+.ap summary { cursor: pointer; padding: 1rem 0; list-style: none; font-weight: 500; }
+.ap summary::-webkit-details-marker { display: none; }
+.ap summary::before { content: "+"; display: inline-block; width: 1.4rem; color: var(--grey-500); font-weight: 300; transition: transform 0.3s var(--ease); }
+.ap details[open] summary::before { transform: rotate(45deg); color: var(--tidal); }
 pre { background: var(--ink-950); border: 1px solid var(--line-d); padding: 1rem; border-radius: 12px; overflow: auto; font: 0.78rem/1.55 var(--mono); max-height: 22rem; color: var(--grey-400); }
 ul { padding-left: 1.1rem; }
 @media (max-width: 900px) { table { display: block; overflow-x: auto; } }
