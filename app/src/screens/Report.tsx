@@ -93,7 +93,7 @@ function Findings({ h, f, pays, seats, records, series, net }: NonNullable<Retur
       {records.length > 0 && (
         <details>
           <summary>Draft a record seed for {records.length} recipient{records.length === 1 ? "" : "s"}</summary>
-          <p className="small muted">Approved payments in this DAO's history become each recipient's track record, so a longer record raises how much can be paid without a vote. The contract checks every proposal id against the DAO.</p>
+          <p className="small muted">Approved payments in this DAO's history become each recipient's track record, so a longer record raises how much can be paid without a vote. Payments into contracts (funding, deposits) are left out. Check the list before filing: the DAO's vote is what makes each point count.</p>
           {seedBatches(records).length > 1 && <p className="small">The contract takes at most 200 payments per call, so this is {seedBatches(records).length} proposals.</p>}
           <pre>{JSON.stringify(seedBatches(records).map((b) => build.seedRecords(instance, b)), null, 2)}</pre>
           <p className="small">File it after setup from the <Link to={`/setup?dao=${encodeURIComponent(h.dao)}`}>Set up screen</Link>.</p>

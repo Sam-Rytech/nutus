@@ -14,16 +14,24 @@ export function medianBig(xs: bigint[]): bigint {
   return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2n;
 }
 
+/** `ft_transfer_call` hands tokens to a contract to act on (funding, deposits, swaps): not pay for work. */
+const callsAContract = (p: Proposal): boolean => {
+  const fc = (p.kind as { FunctionCall?: { actions?: { method_name: string }[] } }).FunctionCall;
+  return !!fc?.actions?.some((a) => a.method_name === "ft_transfer_call");
+};
+
 /**
  * One `seed_records` entry per recipient that an approved single payment
- * paid, listing the proposals that paid them. The contract checks every id
- * against the DAO, so rejected, expired and bulk proposals stay out.
+ * paid, listing the proposals that paid them. Rejected, expired and bulk
+ * proposals stay out, and so do payments into contracts. The contract trusts
+ * these ids (the DAO's vote on the seed is the check), so the draft has to be
+ * right: every id is an approved payment to that account.
  */
 export function recordsFromHistory(dao: string, proposals: Proposal[]): Instance.SeedEntry[] {
   const by = new Map<string, string[]>();
   for (const p of proposals) {
     const pay = singlePayment(dao, p);
-    if (!pay || pay.status !== "Approved") continue;
+    if (!pay || pay.status !== "Approved" || callsAContract(p)) continue;
     by.set(pay.recipient, [...(by.get(pay.recipient) ?? []), String(p.id)]);
   }
   return [...by]

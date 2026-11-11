@@ -52,6 +52,13 @@ describe("recordsFromHistory", () => {
       ftCall(2, 2, "bob.near", "7"),
       bulk,
       transfer(4, 4, "carol.near", "1", "Approved", ""),
+      // Funding a contract (here, the Nutus factory at setup) isn't pay for work.
+      prop(5, 5, {
+        FunctionCall: {
+          receiver_id: "usdc.near",
+          actions: [{ method_name: "ft_transfer_call", args: b64({ receiver_id: "factory.near", amount: "5000", msg: "{}" }), deposit: "1", gas: "1" }],
+        },
+      }),
     ]);
     expect(r).toEqual([
       { account: "alice.near", proposal_ids: ["0"] },

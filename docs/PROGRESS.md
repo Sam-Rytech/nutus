@@ -7,7 +7,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | Builder | Name | GitHub | Role |
 |:--|:--|:--|:--|
 | A | Temitayo | Sam-Rytech | Chain lead: contracts, tests, keeper, testnet, threat model |
-| B | _fill in_ | KayProject | Data and product lead: report, core, preflight, seat watch, web app, notifications |
+| B | Kay | KayProject | Data and product lead: report, core, preflight, seat watch, web app, notifications |
 
 ---
 
@@ -16,18 +16,18 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | Area | Owner | Status |
 |:--|:--|:--|
 | Planning and naming | AB | [x] done |
-| Interfaces frozen | A → B | [~] ABI committed; B to generate types.ts. H2/H3 ready: `deployments/testnet.env` |
+| Interfaces frozen | A → B | [x] ABI committed; `packages/core/src/generated/` from it (`pnpm --filter @nutus/core gen`); `deployments/testnet.env` |
 | Instance contract | A | [x] every §4.5 method implemented and tested; v2 live on testnet |
 | Factory and setup | A | [x] v2 factory on testnet; demo DAO set up through a real proposal |
 | Contract tests | A | [x] 84 instance + 15 factory unit, property test (I1–I5), 8 sandbox scenarios vs real Sputnik (CI) |
 | Keeper | A | [x] `packages/keeper`; hourly GitHub Actions round as keeper.nutus-dev.testnet (needs the `KEEPER_PRIVATE_KEY` secret) |
-| Report port | B | [~] rebuilt from scratch (old scan lost); `packages/report` + `DEFINITIONS.md`; mainnet rescan running |
+| Report port | B | [x] rebuilt from scratch (old scan lost); `packages/report` + `DEFINITIONS.md`; mainnet scan: 174 DAOs, 8,339 proposals |
 | Core (builders, preflight, maths) | B | [x] `packages/core`: ABI types, client, threshold maths, builders, preflight (19 tests, live-checked) |
-| Web app | B | [~] all six screens live at https://nutus.vercel.app (testnet v2); wallet signing verified on testnet (file, object, approve via Meteor) |
+| Web app | B | [x] six screens live at https://nutus.vercel.app (testnet v2); wallet signing verified (file, object, approve via Meteor); preflight in the council inbox |
 | Seat watch | B | [x] silent seats + freeze distance in the report and the council inbox; seat changes drafted, never filed |
 | Notifications | B | [x] @nutusalertbot: webhook + tick functions on nutus.vercel.app, per-chat settings in Upstash Redis, 15-min tick from `.github/workflows/notify.yml` |
-| Testnet end-to-end | AB | [ ] |
-| Docs, video, pitch | AB | [ ] |
+| Testnet end-to-end | AB | [x] every flow run with real transactions (see Testnet log): objection, approval, settle, preflight, record seed, recurring pay |
+| Docs, video, pitch | AB | [~] README current; video and pitch to do |
 
 ---
 
@@ -41,7 +41,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 
 ## Phase 1: Foundations
 - [x] **AB** Create monorepo per the ARCHITECTURE §9 layout; CI (fmt, clippy, cargo test, wasm build + ABI drift check; pnpm job switches on once a lockfile exists). near-workspaces joins CI in Phase 5
-- [~] **AB** Fill in builder names and GitHub handles above (B's name still needed)
+- [x] **AB** Fill in builder names and GitHub handles above
 - [x] **A** Write instance method signatures, structs and events (stubs compile): `contracts/{common,instance,factory}`; init, guards, views, pause/unpause, `set_bond_float`, `set_filing_deposit` already work
 - [x] **A** `cargo near abi` → ABIs committed in `packages/core/abi/` (instance: 40 functions, factory: 9). Regenerate with `sh scripts/abi.sh`
 - [x] **B** Generate `packages/core/types.ts` from `packages/core/abi/*.json` — **H1: interfaces frozen** (`pnpm --filter @nutus/core gen` → `src/generated/`)
@@ -113,14 +113,14 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 **B**
 - [x] Seat watch: silent in 60 days, freeze distance, drafted seat proposals (person files)
 - [x] Ecosystem screen (mainnet scan: 174 DAOs, 8,339 proposals)
-- [x] Telegram notifications: new payout in its window, escalation, expired proposal to finalize, short recurring payment, quiet seat; `/status` and `/start`. Posts to one council group chat (no per-member account link)
+- [x] Telegram notifications (@nutusalertbot): new payout in its window, escalation, expired proposal to finalize, short recurring payment, quiet seat; `/status`, `/settings` (which alerts, how often), `/stop`; any chat opts in with `/start`
 - [~] UI pass: self-hosted fonts ✓, privacy and terms page ✓, empty and error states on every screen ✓; HIG structure not audited
 
 ## Phase 6: End-to-end, docs, submission (AB)
-- [ ] Run every flow on the testnet DAO with real transactions; log tx hashes below
-- [ ] Every Fix-this proposal files and executes on the demo DAO
+- [x] Run every flow on the testnet DAO with real transactions; log tx hashes below
+- [x] Fix-this proposals file and execute on the demo DAO: lane setup (proposal 2), record seed (6), recurring pay + funding (7, 8). Seat changes are drafted only: Nutus never removes anyone, and the demo council has no silent seat
 - [x] Preflight fixes an unregistered recipient end to end (DAO proposal 5; see testnet log). In the app: "Check a payment before the vote" on the council inbox
-- [x] README (setup, trust statement, how to run keeper)
+- [x] README (what's running, app, bot, report, keeper, tests, trust statement), updated 2026-11-11
 - [ ] Demo video (60s script in the plan)
 - [ ] PITCH.md trimmed to verified claims only
 - [ ] Optional: ask 1–2 active DAO operators whether they'd vote in a lane; quote if yes
@@ -227,6 +227,7 @@ Source: [nearhackathon.com](https://nearhackathon.com/), [Social Money brief](ht
 | 2026-11-11 | Bot answers through a Vercel webhook, settings in Upstash Redis; per chat: which of 5 alerts, and as they happen / hourly / 6-hourly / daily summaries; group admins only | A scheduled poller answered commands up to 15 min late, which made buttons unusable |
 | 2026-11-11 | Alerts still come from a 15-min tick (GitHub Action → `/api/tick`), webhook and tick secrets derived from the bot token | Vercel's free cron runs once a day; deriving secrets means nothing extra to share |
 | 2026-11-11 | App deploys as Vercel prebuilt output (`app/scripts/vercel-output.mjs`, esbuild bundles the functions) | The functions import workspace TypeScript packages that Vercel's builder won't compile |
+| 2026-11-11 | Record-seed drafts leave out `ft_transfer_call` payments | Those fund contracts (the factory at setup), not people; `seed_records` trusts the ids, so the draft must be right |
 | 2026-11-10 | Hosted keeper = hourly GitHub Actions run | Free, no server; windows are 48 h, so hourly is plenty |
 | 2026-11-09 | Keeper never retries `needs_manual_filing` or short standing buffers | Both would fail again and burn gas until a person acts |
 | 2026-11-10 | F2 keeps its count shape; the repeat series are exposed by `repeatSeries()` | Existing scan summaries and the numbers the pitch quotes stay valid |
@@ -266,6 +267,10 @@ Source: [nearhackathon.com](https://nearhackathon.com/), [Social Money brief](ht
 | 2026-11-10 | **Preflight end to end:** Transfer of 5 tUSDC to unregistered keeper.nutus-dev.testnet rewritten by `preflight()` into storage_deposit + ft_transfer (`packages/core/scripts/preflight-demo.ts`); c1 files it as DAO proposal 5 | `EZ13CyYoVUUyDLsdER5ZgkutXDcps2G3RpJfKt6D8Fun` | B |
 | 2026-11-10 | c2 + c3 approve proposal 5 → keeper registered (0.00125 NEAR) and paid 5 tUSDC; a plain Transfer would have failed after the vote | `6cEDooQnBcvSq1h38WhXtDDDtqGGua9wob6r3Em8enHJ`, `68yuqQcv6BsxajmXMb61p62QDnLeKJvB54FnDYN8Ws6x` | B |
 | 2026-11-11 | c2 files payout #5 (2 tUSDC to c3); the notifier posts it to the council Telegram group | `EUF6wEFXDLTctyUT5SxiShAsu6mFtntdUsJeHZWkwBcS` | B |
+| 2026-11-11 | Payout #6 (3 tUSDC to c3) filed; the Vercel bot sends the alert card to both subscribed chats | `CAAC3TLRbNSL1bWkmYN8t6MsZqHB1YotJS2aUBAoka8R` | B |
+| 2026-11-11 | **Fix this: record seed** drafted by `packages/report/scripts/draft-fixes.ts` from the demo DAO's history; c2 files proposal 6, c1 + c3 approve → keeper +1 job (proposal 5); c1 (4) and nutus-fund5 (3) already counted, skipped | `583bFzNeFnzw6GnqCgkweX7AaBEqBnfLVxuoJMKfeoKo`, `FnzMRkqj1FPqAESydf7x9nEAzVSRkSLEAANifjEDuGKV`, `G7oyUnV9cvXtvFicVouPusrtGLuZTEzYudYTcorqEdaJ` | B |
+| 2026-11-11 | **Fix this: recurring pay**: proposal 7 adds recurring payment #0 (5 tUSDC weekly to c3, 1 period notice locked) | `6tsd7N7uinoBG6tNB9CFcKyPrtr4ZLyzw81cTAtpZqmD`, `8wY1jhLHQdYV6kZuAyFafng16bjPqFZM1rcsdXVw1H9U`, `7CVzEqtEshF1KuUfBtCNbcvxWk3WW11gJuhTBAV3XTdm` | B |
+| 2026-11-11 | Proposal 8 funds #0's buffer with 20 tUSDC (`ft_transfer_call` … `fund_standing:0`) | `EqBbo5FAHmN1oacwUWGNy3EQKeTa4TJhFwW3jjSKJ14k`, `FoKxtxj8fCSq6WLLRp1ttZ4hpHMsmuGXhp6SPYCPddVo`, `HYPy85uY4xbSNqPjCDdsopUTmwdVV7HUEK5sCvpNdg8L` | B |
 
 ## Blockers
 _None._ (Testnet moved to v2 with the escalation fix on 2026-11-09.)
