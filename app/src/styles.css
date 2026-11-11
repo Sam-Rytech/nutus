@@ -55,10 +55,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .burger span:last-child { top: 24px; }
 .top-nav.is-open .burger span:first-child { top: 20px; transform: rotate(45deg); }
 .top-nav.is-open .burger span:last-child { top: 20px; transform: rotate(-45deg); }
-.menu { position: absolute; left: 0; right: 0; top: calc(100% + 8px); border-radius: 22px; padding: 0.6rem 1.2rem 1.2rem; background: var(--ink-900); border: 1px solid var(--line-d); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6); animation: menu-in 0.25s var(--ease); }
+.menu { position: fixed; z-index: 19; left: 50%; transform: translateX(-50%); width: min(1240px, 100% - 24px); top: 78px; border-radius: 22px; padding: 0.6rem 1.2rem 1.2rem; background: var(--ink-900); border: 1px solid var(--line-d); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6); animation: menu-in 0.25s var(--ease); }
 .menu[hidden] { display: none; }
-@keyframes menu-in { from { opacity: 0; transform: translateY(-6px); } }
+@keyframes menu-in { from { opacity: 0; transform: translate(-50%, -6px); } }
 .menu nav { display: grid; }
+.menu a { text-decoration: none; }
 .menu nav a { font-size: 1.5rem; font-weight: 300; letter-spacing: -0.03em; padding: 0.75rem 0; border-bottom: 1px solid var(--line-d); color: var(--grey-400); display: flex; align-items: center; justify-content: space-between; }
 .menu nav a.active { color: var(--white); }
 .menu nav a.active::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--tidal); }

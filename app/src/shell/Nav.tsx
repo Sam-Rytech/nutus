@@ -43,6 +43,7 @@ export function Nav() {
   );
 
   return (
+    <>
     <header className={`top-nav${open ? " is-open" : ""}`}>
       <Link to={to("/")} aria-label="Nutus home"><Lockup className="logo" color="#fff" /></Link>
       <nav aria-label="Screens" className="wide">
@@ -55,6 +56,8 @@ export function Nav() {
         <span aria-hidden />
         <span aria-hidden />
       </button>
+    </header>
+      {/* A sibling of the bar, not a child: inside the bar's glass the panel would be composited see-through. */}
       <div id="nav-menu" className="menu" hidden={!open}>
         <nav aria-label="Screens">
           {LINKS.map(([p, l]) => <NavLink key={p} to={to(p)}>{l}</NavLink>)}
@@ -65,6 +68,6 @@ export function Nav() {
           {wallet}
         </div>
       </div>
-    </header>
+    </>
   );
 }
