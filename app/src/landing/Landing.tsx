@@ -3,7 +3,7 @@ import { createContext, lazy, Suspense, useContext, useEffect, useRef, useState,
 import { Link, useNavigate } from "react-router-dom";
 import { Mark, Wordmark } from "../brand/Logo.tsx";
 import { Nav } from "../shell/Nav.tsx";
-import { useAfterIntro, useSignalReady } from "../shell/intro.ts";
+import { signal3dReady, useSignalReady } from "../shell/intro.ts";
 import { EXPLORER, instanceId } from "../config.ts";
 import { duration, formatAmount, nowNs, reader, useAsync, useNow, useToken, type Lane, type Payout } from "../lib/chain.ts";
 import { statusName } from "../Window.tsx";
@@ -64,6 +64,10 @@ export function Landing() {
   }, [id]);
   useReveal(page);
   useSignalReady();
+  // Without payouts there's no ledger to draw; don't keep the intro waiting for it.
+  useEffect(() => {
+    if (d.error) signal3dReady();
+  }, [d.error]);
   return (
     <LiveCtx.Provider value={d.data ?? null}>
       <div className="ln" ref={page}>
@@ -96,14 +100,13 @@ function Hero() {
   const live = useLive();
   const m = useMeta();
   const now = nowNs();
-  // The 3D ledger is the heaviest thing on the page: start it after the intro, when the browser is idle.
-  const later = useAfterIntro();
+  // The 3D ledger starts loading straight away; the intro holds until its first frame is drawn.
   const labels = live && m
     ? [...live.payouts].reverse().map((p) => `${money(p.amount, m)} → ${p.recipient.replace(/\.nutus-dev\.testnet$/, "")}\n#${p.id} · ${said(p, now)}`)
     : [];
   return (
     <section className="ln-hero">
-      <Suspense fallback={null}>{later && labels.length > 0 && <GlassLedger className="art" labels={labels} />}</Suspense>
+      <Suspense fallback={null}>{labels.length > 0 && <GlassLedger className="art" labels={labels} />}</Suspense>
       <div className="wrap hero-copy">
         <div className="label"><span className="dot" aria-hidden />Live on NEAR testnet</div>
         <h1>Your DAO pays people <span className="g">even when the council is busy.</span></h1>

@@ -7,6 +7,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { signal3dReady } from "../shell/intro.ts";
 
 const COUNT = 13;
 const ARCH_AT = 0.5; // where along the stream the window sits
@@ -42,7 +43,13 @@ export function GlassLedger({ labels, className }: { labels: string[]; className
     if (!el) return;
     const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    } catch {
+      signal3dReady(); // no WebGL here: let the intro finish without the ledger
+      return;
+    }
     // Cap the pixel ratio: past 1.5 the cost grows faster than anyone can see.
     renderer.setPixelRatio(Math.min(innerWidth < 900 ? 1.25 : 1.5, devicePixelRatio));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -163,7 +170,10 @@ export function GlassLedger({ labels, className }: { labels: string[]; className
       scene.rotation.y = pointer.x * 0.12;
       scene.rotation.x = pointer.y * 0.06;
       renderer.render(scene, camera);
-      if (renderer.domElement.style.opacity === "0") renderer.domElement.style.opacity = "1";
+      if (renderer.domElement.style.opacity === "0") {
+        renderer.domElement.style.opacity = "1";
+        signal3dReady(); // first frame is on screen: the intro can open
+      }
       if (still) cancelAnimationFrame(raf);
     };
     raf = requestAnimationFrame(frame);
