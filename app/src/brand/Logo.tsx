@@ -37,3 +37,16 @@ export function Lockup({ color = "currentColor", className, draw = false }: { co
     </svg>
   );
 }
+
+/** "nutus" on its own, n and last u in tidal cyan. */
+export function Wordmark({ color = "currentColor", className }: { color?: string; className?: string }) {
+  return (
+    <svg className={className} viewBox="100 -1400 5110 1440" role="img" aria-label="Nutus">
+      <path fill={CYAN} d={GLYPHS.n} />
+      <path fill={color} d={GLYPHS.u} />
+      <path fill={color} d={GLYPHS.t} />
+      <path fill={CYAN} d={GLYPHS.u2} />
+      <path fill={color} d={GLYPHS.s} />
+    </svg>
+  );
+}
