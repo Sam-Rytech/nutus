@@ -43,8 +43,11 @@ export function GlassLedger({ labels, className }: { labels: string[]; className
     const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+    // Cap the pixel ratio: past 1.5 the cost grows faster than anyone can see.
+    renderer.setPixelRatio(Math.min(innerWidth < 900 ? 1.25 : 1.5, devicePixelRatio));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.domElement.style.opacity = "0";
+    renderer.domElement.style.transition = "opacity 1.2s ease";
     el.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -84,14 +87,21 @@ export function GlassLedger({ labels, className }: { labels: string[]; className
     const white = new THREE.Color(0xffffff);
     const tidal = new THREE.Color(0x13b5cb);
     const textures: THREE.Texture[] = [];
+    const byLabel = new Map<string, THREE.Texture>();
 
     const slips = Array.from({ length: COUNT }, (_, i) => {
       const g = new THREE.Group();
       g.add(new THREE.Mesh(slipGeo, glass));
       const edgeMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.18 });
       g.add(new THREE.LineSegments(edgeGeo, edgeMat));
-      const tex = labelTexture(labels[i % Math.max(1, labels.length)] ?? "");
-      textures.push(tex);
+      // One texture per distinct label, shared by every slip that shows it.
+      const text = labels[i % Math.max(1, labels.length)] ?? "";
+      let tex = byLabel.get(text);
+      if (!tex) {
+        tex = labelTexture(text);
+        byLabel.set(text, tex);
+        textures.push(tex);
+      }
       const face = new THREE.Mesh(new THREE.PlaneGeometry(W * 0.94, H * 0.94), new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.75, depthWrite: false }));
       face.position.z = D / 2 + 0.003;
       g.add(face);
@@ -153,6 +163,7 @@ export function GlassLedger({ labels, className }: { labels: string[]; className
       scene.rotation.y = pointer.x * 0.12;
       scene.rotation.x = pointer.y * 0.06;
       renderer.render(scene, camera);
+      if (renderer.domElement.style.opacity === "0") renderer.domElement.style.opacity = "1";
       if (still) cancelAnimationFrame(raf);
     };
     raf = requestAnimationFrame(frame);

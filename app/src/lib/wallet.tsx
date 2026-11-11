@@ -1,9 +1,21 @@
-import { actionCreators, setupWalletSelector, type WalletSelector } from "@near-wallet-selector/core";
-import { setupModal, type WalletSelectorModal } from "@near-wallet-selector/modal-ui";
-import { setupMeteorWallet } from "@near-wallet-selector/meteor-wallet";
-import "@near-wallet-selector/modal-ui/styles.css";
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+// The wallet code (selector, Meteor, NEAR libraries, the Buffer shim) is
+// large and nobody needs it until they sign something, so it loads after the
+// page is idle, or straight away if someone presses Connect wallet first.
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { NETWORK } from "../config.ts";
+
+async function loadWallet() {
+  await import("../polyfills.ts"); // Meteor needs Buffer before it loads
+  const [core, modalUi, meteor] = await Promise.all([
+    import("@near-wallet-selector/core"),
+    import("@near-wallet-selector/modal-ui"),
+    import("@near-wallet-selector/meteor-wallet"),
+    import("@near-wallet-selector/modal-ui/styles.css"),
+  ]);
+  const selector = await core.setupWalletSelector({ network: NETWORK, modules: [meteor.setupMeteorWallet()] });
+  return { selector, modal: modalUi.setupModal(selector, { contractId: "" }), actionCreators: core.actionCreators };
+}
+type Loaded = Awaited<ReturnType<typeof loadWallet>>;
 
 const TGAS = 1_000_000_000_000n;
 
@@ -28,36 +40,46 @@ interface WalletCtx {
 const Ctx = createContext<WalletCtx | null>(null);
 
 export function WalletProvider({ children }: { children: ReactNode }) {
-  const [selector, setSelector] = useState<WalletSelector | null>(null);
-  const [modal, setModal] = useState<WalletSelectorModal | null>(null);
+  const [w, setW] = useState<Loaded | null>(null);
   const [accountId, setAccountId] = useState<string | null>(null);
+  const loading = useRef<Promise<Loaded> | null>(null);
 
-  useEffect(() => {
-    let unsub = () => {};
-    setupWalletSelector({ network: NETWORK, modules: [setupMeteorWallet()] }).then((s) => {
-      setSelector(s);
-      setModal(setupModal(s, { contractId: "" }));
-      const pick = () => setAccountId(s.store.getState().accounts.find((a) => a.active)?.accountId ?? null);
+  const ensure = useCallback(() => {
+    loading.current ??= loadWallet().then((l) => {
+      setW(l);
+      const pick = () => setAccountId(l.selector.store.getState().accounts.find((a) => a.active)?.accountId ?? null);
       pick();
-      const sub = s.store.observable.subscribe(pick);
-      unsub = () => sub.unsubscribe();
+      l.selector.store.observable.subscribe(pick);
+      return l;
     });
-    return () => unsub();
+    return loading.current;
   }, []);
+
+  // Load once the page has settled, so a returning user's account shows up.
+  useEffect(() => {
+    const idle = (window as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+    const id = idle ? idle(() => void ensure(), { timeout: 4000 }) : window.setTimeout(() => void ensure(), 2500);
+    return () => {
+      const cancel = (window as { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback;
+      if (idle && cancel) cancel(id);
+      else clearTimeout(id);
+    };
+  }, [ensure]);
 
   const value: WalletCtx = {
     accountId,
-    ready: selector !== null,
-    signIn: () => modal?.show(),
+    ready: w !== null,
+    signIn: () => void ensure().then((l) => l.modal.show()),
     signOut: async () => {
-      if (selector) await (await selector.wallet()).signOut();
+      const l = await ensure();
+      await (await l.selector.wallet()).signOut();
     },
     call: async ({ receiverId, method, args, tgas = 100, deposit = "0" }) => {
-      if (!selector) throw new Error("Wallet is still loading");
-      const wallet = await selector.wallet();
+      const l = await ensure();
+      const wallet = await l.selector.wallet();
       return wallet.signAndSendTransaction({
         receiverId,
-        actions: [actionCreators.functionCall(method, args, BigInt(tgas) * TGAS, BigInt(deposit))],
+        actions: [l.actionCreators.functionCall(method, args, BigInt(tgas) * TGAS, BigInt(deposit))],
       });
     },
   };

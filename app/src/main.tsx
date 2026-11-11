@@ -1,21 +1,21 @@
-import "./polyfills.ts";
-import "@fontsource-variable/public-sans";
-import "@fontsource/geist-mono/400.css";
-import "@fontsource/geist-mono/500.css";
 import "./styles.css";
-import { StrictMode, useEffect } from "react";
+import { lazy, StrictMode, Suspense, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { instanceId } from "./config.ts";
-import { Landing } from "./landing/Landing.tsx";
 import { WalletProvider } from "./lib/wallet.tsx";
-import { Board } from "./screens/Board.tsx";
-import { Council } from "./screens/Council.tsx";
-import { GetPaid } from "./screens/GetPaid.tsx";
-import { Privacy } from "./screens/Privacy.tsx";
-import { Report } from "./screens/Report.tsx";
-import { Setup } from "./screens/Setup.tsx";
 import { Nav } from "./shell/Nav.tsx";
+import { useSignalReady } from "./shell/intro.ts";
+
+// Each screen is its own download, fetched when it's first opened.
+const named = <K extends string>(load: () => Promise<Record<K, React.ComponentType>>, name: K) => lazy(() => load().then((m) => ({ default: m[name] })));
+const Landing = named(() => import("./landing/Landing.tsx"), "Landing");
+const Board = named(() => import("./screens/Board.tsx"), "Board");
+const Council = named(() => import("./screens/Council.tsx"), "Council");
+const GetPaid = named(() => import("./screens/GetPaid.tsx"), "GetPaid");
+const Privacy = named(() => import("./screens/Privacy.tsx"), "Privacy");
+const Report = named(() => import("./screens/Report.tsx"), "Report");
+const Setup = named(() => import("./screens/Setup.tsx"), "Setup");
 
 const TITLES: Record<string, string> = {
   "/board": "Payouts",
@@ -29,6 +29,7 @@ const TITLES: Record<string, string> = {
 /** Every app screen: the floating navigation, the page, a quiet footer. */
 function AppShell() {
   const { pathname } = useLocation();
+  useSignalReady();
   useEffect(() => {
     document.title = TITLES[pathname] ? `${TITLES[pathname]} · Nutus` : "Nutus";
     scrollTo(0, 0);
@@ -37,6 +38,7 @@ function AppShell() {
     <div className="ap">
       <Nav />
       <main>
+        <Suspense fallback={<p className="muted">Loading…</p>}>
         <Routes>
           <Route path="/board" element={<Board />} />
           <Route path="/get-paid" element={<GetPaid />} />
@@ -47,6 +49,7 @@ function AppShell() {
           <Route path="/findings" element={<Navigate to="/" replace />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
       </main>
       <footer className="ap-foot">
         <div className="in">
@@ -81,7 +84,7 @@ createRoot(document.getElementById("root")!).render(
     <WalletProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={<Suspense fallback={<div style={{ minHeight: "100vh", background: "#000" }} />}><Landing /></Suspense>} />
           <Route path="*" element={<AppShell />} />
         </Routes>
       </BrowserRouter>
