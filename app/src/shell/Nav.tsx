@@ -21,17 +21,24 @@ export function Nav() {
   const to = (path: string) => path + search;
   const [open, setOpen] = useState(false);
 
-  // Close on navigation, on Escape, and when the screen grows past the breakpoint.
+  // Close on navigation, on Escape, on a tap or click anywhere outside the
+  // bar and the menu, and when the screen grows past the breakpoint.
   useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    const onPointer = (e: PointerEvent) => {
+      const t = e.target as Element | null;
+      if (t && !t.closest(".top-nav, #nav-menu")) setOpen(false);
+    };
     const mq = matchMedia("(min-width: 901px)");
     const onWide = () => mq.matches && setOpen(false);
     addEventListener("keydown", onKey);
+    addEventListener("pointerdown", onPointer);
     mq.addEventListener("change", onWide);
     return () => {
       removeEventListener("keydown", onKey);
+      removeEventListener("pointerdown", onPointer);
       mq.removeEventListener("change", onWide);
     };
   }, [open]);
