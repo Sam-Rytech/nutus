@@ -2,11 +2,13 @@
 
 The redesign of https://nutus.vercel.app (landing page and the five app screens). Brand is fixed: see `app/public/brand/`.
 
-## The idea: the window fills
+## The idea: the glass ledger
 
-Nutus has one object nobody else has: a payout's **objection window**. While it's open the council can stop the payment; when it closes, the payment goes out. We draw it as a **glass tube filling with tidal-cyan water**. Water level is time: an empty tube was just filed, a full one pays. If someone objects, the water drains into a DAO vote.
+Black, white type, generous space, few words (Fragment's world). Tidal cyan is a hint, never a fill: status dots, one underline, thin progress lines, focus rings, and the n and u in the wordmark.
 
-That object carries the whole site: the hero (a live testnet payout, not an illustration), every payout row in the app, the "how it works" sequence, and the loading states.
+The one 3D object sits on the right of the hero, behind the words: **a stream of dark glass slips, each a real testnet payout etched in mono, flowing out of the distance through a chrome arch shaped like the n's curve.** The arch is the objection window; slips that pass through it pick up a thin cyan edge — paid. (`app/src/brand/GlassLedger.tsx`, three.js.)
+
+Superseded on 11 Nov: the water-filled window and the full-hero 3D mark.
 
 ## What we took from the references (and what we didn't)
 
@@ -54,16 +56,19 @@ Status uses the water, not new colours: **waiting** = tube part-full, **paid** =
 
 ## Landing page
 
-1. **Navigation**: floating glass pill — logo, Payouts · Council · Get paid · Report, and a white "Connect wallet" pill.
-2. **Hero** (dark): two-tone headline, one line of explanation, "Open the council inbox" (tidal) and "Read your DAO" (ghost). Beside it, the **live window**: the newest waiting payout on testnet, amount and recipient in mono, countdown, water rising in real time. A faint tidal bloom behind it.
-3. **What we found on mainnet** (light `paper` section): 8,339 proposals as a field of small tiles; a tidal scan line passes; the tiles sort into three findings in big light numerals over thin rules — **34%** of council seats silent · **171** proposals passed then failed · **84 of 115** people never paid.
-4. **How it works** (dark, pinned, scrolls sideways): `01 Filed` → `02 Window open` (water rising) → `03 Paid` or `Objected` (water drains to a DAO vote) → `04 On the record`. Each step shows a real fragment of the app.
-5. **Four ways to pay**: glass cards — Small, Medium, Large, Recurring — each with its own window variant.
-6. **It runs itself** (dark): the keeper every five minutes (a mono ticker), and a real Telegram alert card from @nutusalertbot.
-7. **Read your DAO**: one large glass input → opens the report for any Sputnik DAO.
-8. **Footer**: the giant wordmark with cyan n and u, fading out; links and the testnet note.
+Every section answers something a judge or a DAO needs to know; each shows real data where it can.
 
-**Motion** — one orchestrated moment on load (the mark draws its two strokes, then the hero window starts filling), the scan in section 3, the sideways pin in section 4. Everything else is still. `prefers-reduced-motion` turns all of it off. GSAP + ScrollTrigger.
+1. Hero — headline, one line, "Try it on testnet", "Read your DAO"; the glass ledger on the right.
+2. The idea in one paragraph, lit word by word as it scrolls.
+3. The problem, measured on mainnet — 34% silent seats, 171 passed-then-failed, 84 of 115 never paid.
+4. How a payout moves — four rows.
+5. What you get — council inbox, get paid, payouts, DAO report, Telegram alerts; each with a live mini-view.
+6. Safe by design — six facts (contract unchanged, code fixed by hash, DAO-only money, locked notice, preflight, tests).
+7. Proof it works — the live payout row and six real transactions with explorer links.
+8. Set it up — read, vote, run; the "read your DAO" input.
+9. Open by default — code, run a keeper, Telegram bot, the spec.
+10. Questions — five.
+11. Footer — the wordmark alone, fading in from the top.
 
 ## App screens
 
