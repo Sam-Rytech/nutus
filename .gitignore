@@ -12,3 +12,4 @@ app/dist/
 
 # Private notes, not for the repo
 docs/HANDOVER.md
+.notify-state.json

@@ -25,7 +25,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | Core (builders, preflight, maths) | B | [x] `packages/core`: ABI types, client, threshold maths, builders, preflight (19 tests, live-checked) |
 | Web app | B | [~] all six screens live at https://nutus.vercel.app (testnet v2); wallet signing verified on testnet (file, object, approve via Meteor) |
 | Seat watch | B | [x] silent seats + freeze distance in the report and the council inbox; seat changes drafted, never filed |
-| Notifications | B | [ ] |
+| Notifications | B | [~] `packages/notify` + `.github/workflows/notify.yml` (every 15 min); waiting on the bot token and chat id |
 | Testnet end-to-end | AB | [ ] |
 | Docs, video, pitch | AB | [ ] |
 
@@ -113,7 +113,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 **B**
 - [x] Seat watch: silent in 60 days, freeze distance, drafted seat proposals (person files)
 - [x] Ecosystem screen (mainnet scan: 174 DAOs, 8,339 proposals)
-- [ ] Telegram notifications (account link by signature; window, shortfall, quiet seat, bond to recover)
+- [~] Telegram notifications: new payout in its window, escalation, expired proposal to finalize, short recurring payment, quiet seat; `/status` and `/start`. Posts to one council group chat (no per-member account link)
 - [~] UI pass: self-hosted fonts ✓, privacy and terms page ✓, empty and error states on every screen ✓; HIG structure not audited
 
 ## Phase 6: End-to-end, docs, submission (AB)
@@ -223,6 +223,8 @@ Source: [nearhackathon.com](https://nearhackathon.com/), [Social Money brief](ht
 | 2026-11-10 | Record-seed drafts split into proposals of ≤ 200 ids (`seedBatches`) | The instance's `MAX_SEED_POINTS` is 200; one bigger proposal would pass the vote and fail with TOO_MANY_POINTS |
 | 2026-11-10 | Recurring-pay drafts start at the first due date after today, and skip series paid < 7 days apart | `pay_due` pays every elapsed period at once, so a past `first_due_ns` back-pays; same-week repeats are batches, not salaries |
 | 2026-11-10 | Vercel deploys only from the CLI (`vercel.json`: git deploys off) | The GitHub integration built the repo root on every push and replaced the site with a 404 |
+| 2026-11-11 | Telegram alerts go to one council group chat, not per-member DMs linked by signature | No server or database to hold links; the council already shares a chat; everything posted is public chain data |
+| 2026-11-11 | Notifier is a scheduled GitHub Action that remembers only its last run time (Actions cache) | Each alert fires in the run whose window contains the moment it became true; commands are read with getUpdates, so no webhook server |
 | 2026-11-10 | Hosted keeper = hourly GitHub Actions run | Free, no server; windows are 48 h, so hourly is plenty |
 | 2026-11-09 | Keeper never retries `needs_manual_filing` or short standing buffers | Both would fail again and burn gas until a person acts |
 | 2026-11-10 | F2 keeps its count shape; the repeat series are exposed by `repeatSeries()` | Existing scan summaries and the numbers the pitch quotes stay valid |

@@ -1,0 +1,70 @@
+name: Notify (testnet)
+
+# Council alerts on Telegram, every 15 minutes: new payouts in their window,
+# objections, expired DAO proposals to finalize, short recurring payments,
+# seats going quiet. Also answers /start and /status sent to the bot.
+# It only reads the chain; it holds no NEAR key.
+#
+# Setup (once):
+#   1. Create a bot with @BotFather and copy its token.
+#   2. gh secret set TELEGRAM_BOT_TOKEN
+#   3. Add the bot to the council's Telegram group and send /start there.
+#      The bot replies (within 15 min) with the chat id and the command:
+#      gh secret set TELEGRAM_CHAT_ID --body "<id>"
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: notify
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Skip unless the bot token is configured
+        id: key
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "TELEGRAM_BOT_TOKEN is not set; skipping."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.key.outputs.ok == 'true'
+        uses: actions/checkout@v4
+      - if: steps.key.outputs.ok == 'true'
+        uses: pnpm/action-setup@v4
+      - if: steps.key.outputs.ok == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - if: steps.key.outputs.ok == 'true'
+        run: pnpm install --frozen-lockfile --filter @nutus/notify...
+      # The only state: when the last run happened, so each alert goes out once.
+      - if: steps.key.outputs.ok == 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: .notify-state.json
+          key: notify-state-${{ github.run_id }}
+          restore-keys: notify-state-
+      - if: steps.key.outputs.ok == 'true'
+        name: Alerts and commands
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          INSTANCE: nutus-demo.v2.nutus-dev.testnet
+          STATE_FILE: ${{ github.workspace }}/.notify-state.json
+        run: pnpm --filter @nutus/notify start
+      - if: steps.key.outputs.ok == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .notify-state.json
+          key: notify-state-${{ github.run_id }}
