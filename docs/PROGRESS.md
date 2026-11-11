@@ -220,6 +220,9 @@ Source: [nearhackathon.com](https://nearhackathon.com/), [Social Money brief](ht
 | 2026-11-10 | Meteor Wallet only, with a `buffer` polyfill | MyNearWallet stopped accepting new app connections (retired); Meteor's module needs Node's Buffer, so `src/polyfills.ts` sets it before anything else loads |
 | 2026-11-10 | pnpm overrides pin vite 8.3.6 / rolldown 1.2.16 | Keeps every install inside pnpm's minimum release age instead of waiving the check |
 | 2026-11-10 | App deployed to Vercel as a static build (`pnpm --filter @nutus/app deploy`) | Built locally from the monorepo; SPA rewrite in `app/public/vercel.json` |
+| 2026-11-10 | Record-seed drafts split into proposals of ≤ 200 ids (`seedBatches`) | The instance's `MAX_SEED_POINTS` is 200; one bigger proposal would pass the vote and fail with TOO_MANY_POINTS |
+| 2026-11-10 | Recurring-pay drafts start at the first due date after today, and skip series paid < 7 days apart | `pay_due` pays every elapsed period at once, so a past `first_due_ns` back-pays; same-week repeats are batches, not salaries |
+| 2026-11-10 | Vercel deploys only from the CLI (`vercel.json`: git deploys off) | The GitHub integration built the repo root on every push and replaced the site with a 404 |
 | 2026-11-10 | Hosted keeper = hourly GitHub Actions run | Free, no server; windows are 48 h, so hourly is plenty |
 | 2026-11-09 | Keeper never retries `needs_manual_filing` or short standing buffers | Both would fail again and burn gas until a person acts |
 | 2026-11-10 | F2 keeps its count shape; the repeat series are exposed by `repeatSeries()` | Existing scan summaries and the numbers the pitch quotes stay valid |

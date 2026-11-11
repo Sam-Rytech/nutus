@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Policy, Proposal } from "@nutus/core";
-import { DAY, f2, recordsFromHistory, repeatSeries, standingFromSeries } from "../src/index.ts";
+import { DAY, f2, recordsFromHistory, repeatSeries, recurringSeries, seedBatches, standingFromSeries } from "../src/index.ts";
 
 const policy: Policy = {
   roles: [
@@ -97,5 +97,42 @@ describe("repeat series to standing payments", () => {
       notice_periods: 1,
       memo: "Recurring pay for x.near",
     });
+  });
+});
+
+describe("seedBatches", () => {
+  const ids = (n: number, from = 0) => Array.from({ length: n }, (_, i) => String(from + i));
+  it("keeps a small seed in one batch", () => {
+    expect(seedBatches([{ account: "a", proposal_ids: ["1", "2"] }])).toEqual([[{ account: "a", proposal_ids: ["1", "2"] }]]);
+  });
+  it("never puts more than the contract's limit in one batch", () => {
+    const b = seedBatches([{ account: "a", proposal_ids: ids(150) }, { account: "b", proposal_ids: ids(120, 150) }, { account: "c", proposal_ids: ids(5, 270) }]);
+    expect(b.map((x) => x.reduce((s, e) => s + e.proposal_ids.length, 0))).toEqual([200, 75]);
+    expect(b.flat().flatMap((e) => e.proposal_ids)).toEqual(ids(275));
+    expect(b[0]!.at(-1)).toEqual({ account: "b", proposal_ids: ids(50, 150) });
+  });
+  it("splits one recipient with more ids than fit", () => {
+    expect(seedBatches([{ account: "a", proposal_ids: ids(450) }]).map((x) => x[0]!.proposal_ids.length)).toEqual([200, 200, 50]);
+  });
+  it("returns nothing for no entries", () => {
+    expect(seedBatches([])).toEqual([]);
+  });
+});
+
+describe("standingFromSeries with now", () => {
+  const s = { dao: "d", recipient: "x.near", token: "usdc.near", amount: 100n, proposalIds: ["1", "2", "3"], submitted: [32n * DAY, 62n * DAY, 92n * DAY] };
+  it("keeps the next date when it is still ahead", () => {
+    expect(standingFromSeries(s, 100n * DAY).first_due_ns).toBe(String(122n * DAY));
+  });
+  it("rolls a past date forward to the first one after now, so nothing is back-paid", () => {
+    expect(standingFromSeries(s, 200n * DAY).first_due_ns).toBe(String(212n * DAY));
+    expect(standingFromSeries(s, 212n * DAY).first_due_ns).toBe(String(242n * DAY));
+  });
+});
+
+describe("recurringSeries", () => {
+  it("drops series paid less than a week apart", () => {
+    const at = (...d: bigint[]) => ({ dao: "d", recipient: "x", token: "near", amount: 1n, proposalIds: d.map(String), submitted: d.map((x) => x * DAY) });
+    expect(recurringSeries([at(1n, 2n, 3n), at(1n, 31n, 61n)]).map((x) => x.submitted[1])).toEqual([31n * DAY]);
   });
 });

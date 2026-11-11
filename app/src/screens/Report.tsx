@@ -1,5 +1,5 @@
 import { build, groupMembers, instanceAccount, rpcView, type Policy } from "@nutus/core";
-import { DAY, findings, proposalsSince, recordsFromHistory, repeatSeries, retry, seatsOf, singlePayment, smallCutoffs, standingFromSeries, type Payment } from "@nutus/report/browser";
+import { DAY, findings, proposalsSince, recordsFromHistory, recurringSeries, repeatSeries, retry, seedBatches, seatsOf, singlePayment, smallCutoffs, standingFromSeries, type Payment } from "@nutus/report/browser";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { DEFAULTS, MAINNET_RPC_URL, RPC_URL } from "../config.ts";
@@ -21,7 +21,7 @@ export function Report() {
     const [policy, proposals] = await Promise.all([retry(() => view<Policy>(dao, "get_policy"), 5), proposalsSince(view, dao, w.from)]);
     const h = { dao, policy, proposals };
     const pays = proposals.map((p) => singlePayment(dao, p)).filter((p): p is Payment => p !== null);
-    return { h, w, f: findings([h], w), pays, seats: seatsOf(h, w), records: recordsFromHistory(dao, proposals), series: repeatSeries([h]) };
+    return { h, w, f: findings([h], w), pays, seats: seatsOf(h, w), records: recordsFromHistory(dao, proposals), series: recurringSeries(repeatSeries([h])) };
   }, [dao, net]);
 
   const go = (e: React.FormEvent) => {
@@ -94,15 +94,16 @@ function Findings({ h, f, pays, seats, records, series, net }: NonNullable<Retur
         <details>
           <summary>Draft a record seed for {records.length} recipient{records.length === 1 ? "" : "s"}</summary>
           <p className="small muted">Approved payments in this DAO's history become each recipient's track record, so a longer record raises how much can be paid without a vote. The contract checks every proposal id against the DAO.</p>
-          <pre>{JSON.stringify(build.seedRecords(instance, records), null, 2)}</pre>
+          {seedBatches(records).length > 1 && <p className="small">The contract takes at most 200 payments per call, so this is {seedBatches(records).length} proposals.</p>}
+          <pre>{JSON.stringify(seedBatches(records).map((b) => build.seedRecords(instance, b)), null, 2)}</pre>
           <p className="small">File it after setup from the <Link to={`/setup?dao=${encodeURIComponent(h.dao)}`}>Set up screen</Link>.</p>
         </details>
       )}
       {series.length > 0 && (
         <details>
           <summary>Draft recurring pay for {series.length} repeat series</summary>
-          <p className="small muted">Each series paid the same recipient, token and amount at least three times. This draft pays that amount every median period, with one period of locked notice, instead of a fresh vote each time.</p>
-          <pre>{JSON.stringify(series.map((s: Parameters<typeof standingFromSeries>[0]) => build.addStanding(instance, standingFromSeries(s))), null, 2)}</pre>
+          <p className="small muted">Each series paid the same recipient, token and amount at least three times, at least a week apart. This draft pays that amount every median period, with one period of locked notice, instead of a fresh vote each time.</p>
+          <pre>{JSON.stringify(series.map((s: Parameters<typeof standingFromSeries>[0]) => build.addStanding(instance, standingFromSeries(s, nowNs()))), null, 2)}</pre>
           <p className="small">File these after setup from the <Link to={`/setup?dao=${encodeURIComponent(h.dao)}`}>Set up screen</Link>.</p>
         </details>
       )}
