@@ -6,6 +6,7 @@ import { nowNs, reader, useAsync, view, type Payout } from "../lib/chain.ts";
 import { explain, useWallet } from "../lib/wallet.tsx";
 import { PayoutRow } from "./Board.tsx";
 import { statusName } from "../Window.tsx";
+import { PageHead } from "../shell/PageHead.tsx";
 import { CheckPayment } from "./CheckPayment.tsx";
 
 export function Council() {
@@ -69,8 +70,18 @@ export function Council() {
 
   return (
     <>
-      <h1>Council inbox</h1>
-      <p className="lede">What needs a council member now. Small payouts pay themselves; you only act to stop one or to approve a medium one.</p>
+      <PageHead
+        path="/council"
+        title="Council inbox."
+        rest="Only what needs you."
+        lede="Small payouts pay themselves. You act only to stop one, approve a medium one, or close out a DAO vote."
+        stats={[
+          { n: objectable.length + approvable.length, label: "need a council member", hint: objectable.length + approvable.length > 0 },
+          { n: releasable.length + escalatable.length + settleable.length + due.length, label: "due for the keeper" },
+          { n: expired.length, label: "expired votes to finalize" },
+          { n: silent.length, label: "silent seats" },
+        ]}
+      />
       {!accountId ? (
         <div className="notice"><button className="btn" onClick={signIn}>Connect wallet</button> to object or approve as a council member.</div>
       ) : !member ? (
@@ -88,7 +99,7 @@ export function Council() {
       )}
       {!assessed && <p className="small muted">Seat health needs at least 3 DAO proposals in the last 60 days to judge who's silent.</p>}
 
-      <h2>Object before it pays ({objectable.length})</h2>
+      <h2>Object before it pays <span className="g">{objectable.length}</span></h2>
       {objectable.length === 0 && <p className="muted">No small payouts inside their window.</p>}
       <div className="payouts">
         {objectable.map((p) => (
@@ -109,7 +120,7 @@ export function Council() {
         ))}
       </div>
 
-      <h2>Approve ({approvable.length})</h2>
+      <h2>Approve <span className="g">{approvable.length}</span></h2>
       {approvable.length === 0 && <p className="muted">No medium payouts waiting for approval.</p>}
       <div className="payouts">
         {approvable.map((p) => (
@@ -118,7 +129,7 @@ export function Council() {
       </div>
 
       <h2>Due now</h2>
-      <p className="small muted">The keeper does these every hour. Anyone can do them sooner.</p>
+      <p className="small muted">The keeper does these every five minutes. Anyone can do them sooner.</p>
       {releasable.length + escalatable.length + settleable.length + due.length === 0 && <p className="muted">Nothing due.</p>}
       <div className="payouts">
         {releasable.map((p) => <PayoutRow key={p.id} p={p} actions={<button className="btn quiet" disabled={!accountId || busy !== null} onClick={() => act(`r${p.id}`, "release", { payout_id: p.id }, 100, "Released.")}>Release</button>} />)}
@@ -134,7 +145,7 @@ export function Council() {
 
       {escalated.length > 0 && (
         <>
-          <h2>Escalated to the DAO ({escalated.length})</h2>
+          <h2>Escalated to the DAO <span className="g">{escalated.length}</span></h2>
           <p className="small muted">These payouts became normal DAO proposals. If one expires without a decision, finalizing it returns the bond to the instance. The DAO's policy decides who may finalize; by default that is the council.</p>
           <div className="payouts">
             {escalated.map((p) => {
@@ -162,7 +173,7 @@ export function Council() {
 
       {manual.length > 0 && (
         <>
-          <h2>Needs a person ({manual.length})</h2>
+          <h2>Needs a person <span className="g">{manual.length}</span></h2>
           <p className="small muted">These were objected to, but the DAO proposal couldn't be filed automatically (bond float short, or the DAO doesn't let the instance file proposals). File a Transfer proposal in the DAO by hand, then the DAO can cancel the payout here.</p>
           <div className="payouts">{manual.map((p) => <PayoutRow key={p.id} p={p} />)}</div>
         </>

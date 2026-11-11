@@ -1,3 +1,4 @@
+import { PageHead } from "../shell/PageHead.tsx";
 import { build, groupMembers, instanceAccount, type Policy } from "@nutus/core";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -99,8 +100,12 @@ export function Setup() {
 
   return (
     <>
-      <h1>Set up</h1>
-      <p className="lede">One DAO proposal creates this DAO's Nutus and moves a budget into it. The council votes once; after that, small payouts don't need a vote.</p>
+      <PageHead
+        path="/setup"
+        title="Set it up."
+        rest="One proposal, one vote."
+        lede="One DAO proposal creates this DAO's Nutus account and moves a budget into it. The council votes once; after that, small payouts don't need a vote."
+      />
       {q.get("dao") && !dao && <div className="notice warn">The report drafted this for {q.get("dao")}. This demo files on testnet only: enter a testnet DAO.</div>}
       <div className="form">
         <label>DAO <span>A Sputnik DAO on testnet, e.g. nutus-demo.sputnikv2.testnet.</span>

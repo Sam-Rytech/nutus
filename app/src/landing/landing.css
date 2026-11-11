@@ -1,24 +1,5 @@
 /* Nutus design tokens and the landing page (docs/DESIGN.md). */
-:root {
-  --black: #000000;
-  --ink-950: #07090c;
-  --ink-900: #0e1116;
-  --ink-800: #161b22;
-  --line-d: rgba(255, 255, 255, 0.1);
-  --line-d2: rgba(255, 255, 255, 0.18);
-  --grey-500: #8a8f98;
-  --grey-600: #5d636c;
-  --grey-400: #a4aab3;
-  --ash-200: #d9dde2;
-  --white: #ffffff;
-  --tidal: #13b5cb;
-  --tidal-deep: #0b8fa3;
-  --alert: #e5484d;
-
-  --sans: "Public Sans Variable", system-ui, sans-serif;
-  --mono: "Geist Mono", ui-monospace, Consolas, monospace;
-  --ease: cubic-bezier(0.22, 1, 0.36, 1);
-}
+/* Tokens and the floating navigation live in src/styles.css. */
 
 /* ── page ── */
 .ln { background: var(--black); color: var(--white); font: 400 17px/1.6 var(--sans); min-height: 100vh; overflow-x: clip; }
@@ -37,14 +18,6 @@
 .ln .small { font-size: 0.85rem; }
 .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
-/* navigation */
-.ln-nav { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 20; width: min(1240px, 100% - 24px); display: flex; align-items: center; gap: 1.5rem; padding: 8px 8px 8px 18px; border-radius: 999px; background: rgba(14, 17, 22, 0.72); backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%); border: 1px solid var(--line-d); }
-.ln-nav .logo { height: 26px; width: auto; display: block; }
-.ln-nav nav { display: flex; gap: 1.4rem; margin-left: auto; font-size: 0.92rem; }
-.ln-nav nav a { text-decoration: none; color: var(--grey-400); transition: color 0.2s; }
-.ln-nav nav a:hover { color: var(--white); }
-.ln-nav .who { font-family: var(--mono); font-size: 0.82rem; color: var(--grey-400); max-width: 13rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ln .pill { display: inline-flex; align-items: center; height: 38px; padding: 0 1rem; border-radius: 999px; border: 0; background: var(--white); color: var(--black); font: 600 0.9rem var(--sans); cursor: pointer; text-decoration: none; }
 
 /* hero: words left, the glass ledger right */
 .ln-hero { position: relative; min-height: 100svh; display: flex; align-items: center; }
@@ -178,8 +151,6 @@
 }
 
 @media (max-width: 900px) {
-  .ln-nav nav, .ln-nav .who { display: none; }
-  .ln-nav .pill { margin-left: auto; }
   .ln-hero { align-items: end; }
   .ln-hero .art { width: 100%; height: 62%; opacity: 0.75; }
   .ln-hero::after { width: 100%; inset: auto 0 0 0; height: 60%; background: linear-gradient(0deg, #000 45%, transparent); }

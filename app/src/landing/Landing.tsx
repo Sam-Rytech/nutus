@@ -1,10 +1,10 @@
 import { allPayouts } from "@nutus/core";
 import { createContext, lazy, Suspense, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Lockup, Mark, Wordmark } from "../brand/Logo.tsx";
+import { Mark, Wordmark } from "../brand/Logo.tsx";
+import { Nav } from "../shell/Nav.tsx";
 import { EXPLORER, instanceId } from "../config.ts";
 import { duration, formatAmount, nowNs, reader, useAsync, useNow, useToken, type Lane, type Payout } from "../lib/chain.ts";
-import { useWallet } from "../lib/wallet.tsx";
 import { statusName } from "../Window.tsx";
 import "./landing.css";
 
@@ -81,29 +81,6 @@ export function Landing() {
         <Footer />
       </div>
     </LiveCtx.Provider>
-  );
-}
-
-function Nav() {
-  const { accountId, signIn, signOut } = useWallet();
-  return (
-    <header className="ln-nav">
-      <Link to="/" aria-label="Nutus home"><Lockup className="logo" color="#fff" /></Link>
-      <nav aria-label="Screens">
-        <Link to="/board">Payouts</Link>
-        <Link to="/council">Council</Link>
-        <Link to="/get-paid">Get paid</Link>
-        <Link to="/report">Report</Link>
-      </nav>
-      {accountId ? (
-        <>
-          <span className="who" title={accountId}>{accountId}</span>
-          <button className="pill" onClick={() => signOut()}>Sign out</button>
-        </>
-      ) : (
-        <button className="pill" onClick={signIn}>Connect wallet</button>
-      )}
-    </header>
   );
 }
 

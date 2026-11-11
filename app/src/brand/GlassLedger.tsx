@@ -129,7 +129,8 @@ export function GlassLedger({ labels, className }: { labels: string[]; className
     let raf = 0;
     const place = (time: number) => {
       for (const s of slips) {
-        const t = (s.offset + time * 0.018) % 1;
+        // Wrap into [0, 1): the first frame's timestamp can precede `start`, making time negative.
+        const t = (((s.offset + time * 0.018) % 1) + 1) % 1;
         const p = path.getPointAt(t);
         s.g.position.copy(p);
         // A slow tumble along the stream, facing mostly towards the viewer.
@@ -145,7 +146,7 @@ export function GlassLedger({ labels, className }: { labels: string[]; className
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
       if (!visible) return;
-      const time = still ? 12 : (now - start) / 1000;
+      const time = still ? 12 : Math.max(0, (now - start) / 1000);
       place(time);
       pointer.x += (pointer.tx - pointer.x) * 0.04;
       pointer.y += (pointer.ty - pointer.y) * 0.04;

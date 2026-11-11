@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { DEFAULTS, MAINNET_RPC_URL, RPC_URL } from "../config.ts";
 import { formatAmount, nowNs, useAsync, useToken } from "../lib/chain.ts";
+import { PageHead } from "../shell/PageHead.tsx";
 
 const pct = (a: number, b: number) => (b === 0 ? "—" : `${Math.round((100 * a) / b)}%`);
 
@@ -32,16 +33,22 @@ export function Report() {
 
   return (
     <>
-      <h1>DAO report</h1>
-      <p className="lede">Read any Sputnik DAO's last year of proposals and see where payouts get stuck. Read-only: nothing is signed.</p>
-      <form className="row" onSubmit={go} style={{ maxWidth: "40rem" }}>
-        <input aria-label="DAO account" value={input} onChange={(e) => setInput(e.target.value)} placeholder="ref-finance.sputnik-dao.near" style={{ flex: 1 }} />
-        <select aria-label="Network" value={net} onChange={(e) => setParams({ dao, net: e.target.value })} style={{ width: "auto" }}>
-          <option value="mainnet">mainnet</option>
-          <option value="testnet">testnet</option>
-        </select>
-        <button className="btn">Read</button>
-      </form>
+      <PageHead
+        path="/report"
+        title="Read your DAO."
+        rest="See where its payouts get stuck."
+        lede="A year of any Sputnik DAO's proposals: silent seats, payments that failed after the vote, small payments that lapsed. Then the fixes, drafted. Read-only; nothing is signed."
+      >
+        <form className="big-read" onSubmit={go} role="search">
+          <input aria-label="DAO account" value={input} onChange={(e) => setInput(e.target.value)} placeholder={net === "mainnet" ? "ref-finance.sputnik-dao.near" : "nutus-demo.sputnikv2.testnet"} spellCheck={false} autoComplete="off" />
+          <div className="nets" role="group" aria-label="Network">
+            {(["mainnet", "testnet"] as const).map((n) => (
+              <button key={n} type="button" aria-pressed={net === n} onClick={() => setParams(dao ? { dao, net: n } : { net: n })}>{n}</button>
+            ))}
+          </div>
+          <button className="go" type="submit">Read →</button>
+        </form>
+      </PageHead>
 
       {r.loading && dao && <p className="muted">Reading {dao}…</p>}
       {r.error && (

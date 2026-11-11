@@ -48,7 +48,7 @@ packages/core        TS types generated from the ABI, client, threshold maths, p
 packages/report      mainnet scan (F1–F5), per-DAO report, Fix-this drafts
 packages/keeper      calls whatever is due; anyone can run one
 packages/notify      Telegram bot: alerts, /status, per-chat settings
-app/                 Vite + React web app (six screens) and the bot's Vercel functions
+app/                 Vite + React web app (home + five screens) and the bot's Vercel functions
 scripts/             testnet deploy / setup / demo scripts
 ```
 
@@ -62,7 +62,7 @@ pnpm --filter @nutus/app deploy   # build, bundle the bot functions, publish to 
 
 Point it at another instance with `?instance=<account>`. Signing uses Meteor Wallet on testnet.
 
-Screens: **Payouts** (public board with each objection window), **Get paid** (file a payout), **Council inbox** (object, approve, finalize expired votes, check a payment before the vote), **DAO report** (any Sputnik DAO, mainnet or testnet, with Fix-this drafts), **Set up** (file the setup proposal), **Network findings**.
+Screens: **Home** (what Nutus is, live testnet data, the mainnet findings), **Payouts** (every payout and its objection window), **Council inbox** (object, approve, finalize expired votes, check a payment before the vote), **Get paid** (file a payout as one sentence), **DAO report** (any Sputnik DAO, mainnet or testnet, with Fix-this drafts), **Set up** (file the setup proposal).
 
 Pushes to `main` don't deploy (`vercel.json` turns git deploys off); deploys come from the command above.
 

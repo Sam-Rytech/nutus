@@ -2,6 +2,7 @@ import { allPayouts, allStanding } from "@nutus/core";
 import { instanceId } from "../config.ts";
 import { date, duration, formatAmount, nowNs, reader, useAsync, useToken, type Payout, type Standing } from "../lib/chain.ts";
 import { Window, statusName } from "../Window.tsx";
+import { PageHead } from "../shell/PageHead.tsx";
 
 export function Amount({ raw, token }: { raw: string; token: string }) {
   const m = useToken(token);
@@ -64,21 +65,28 @@ export function Board() {
 
   return (
     <>
-      <h1>Payouts</h1>
-      <p className="lede">
-        Everything this DAO's Nutus is paying, has paid, or was stopped from paying. Small payouts go through when their window closes unless a
-        council member objects.
-      </p>
+      <PageHead
+        path="/board"
+        title="Payouts."
+        rest="Everything this DAO is paying, has paid, or stopped."
+        lede="Small payouts go through when their window closes, unless a council member objects. Read straight from the chain."
+        stats={[
+          { n: waiting.length, label: "waiting now", hint: waiting.length > 0 },
+          { n: done.filter((p) => ["Paid", "Settled"].includes(statusName(p.status))).length, label: "paid" },
+          { n: books[0] ? <Amount raw={books[0].available} token={books[0].token} /> : "—", label: "free to spend" },
+          { n: standing.filter((s) => s.state !== "Ended").length, label: "recurring payments" },
+        ]}
+      />
       {config.paused && <div className="notice warn">The DAO has paused this instance: no new payouts or releases. Notice payments still go out.</div>}
 
-      <h2>Waiting ({waiting.length})</h2>
+      <h2>Waiting <span className="g">{waiting.length}</span></h2>
       {waiting.length === 0 ? (
         <p className="muted">Nothing waiting. Contributors file payouts on the Get paid screen.</p>
       ) : (
         <div className="payouts">{waiting.map((p) => <PayoutRow key={p.id} p={p} />)}</div>
       )}
 
-      <h2>Budget</h2>
+      <h2>Budget <span className="g">by lane</span></h2>
       {lanes.length === 0 ? (
         <p className="muted">No lanes yet. A setup proposal adds the first one.</p>
       ) : (
@@ -117,7 +125,7 @@ export function Board() {
 
       {standing.length > 0 && <StandingList standing={standing} />}
 
-      <h2>History ({done.length})</h2>
+      <h2>History <span className="g">{done.length}</span></h2>
       {done.length === 0 ? <p className="muted">No finished payouts yet.</p> : <div className="payouts">{done.map((p) => <PayoutRow key={p.id} p={p} />)}</div>}
     </>
   );
