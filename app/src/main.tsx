@@ -1,10 +1,13 @@
 import "./polyfills.ts";
 import "@fontsource-variable/public-sans";
+import "@fontsource/geist-mono/400.css";
+import "@fontsource/geist-mono/500.css";
 import "./styles.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { instanceId } from "./config.ts";
+import { Landing } from "./landing/Landing.tsx";
 import { WalletProvider, useWallet } from "./lib/wallet.tsx";
 import { Board } from "./screens/Board.tsx";
 import { Council } from "./screens/Council.tsx";
@@ -32,7 +35,7 @@ function Shell() {
           <hr />
           <NavLink to={keep("/report")}>DAO report</NavLink>
           <NavLink to={keep("/setup")}>Set up</NavLink>
-          <NavLink to={keep("/")} end>Network findings</NavLink>
+          <NavLink to={keep("/findings")}>Network findings</NavLink>
         </nav>
         <div className="who">
           <div>Instance <span className="mono">{instanceId()}</span> on testnet</div>
@@ -49,7 +52,7 @@ function Shell() {
       </aside>
       <main>
         <Routes>
-          <Route path="/" element={<Ecosystem />} />
+          <Route path="/findings" element={<Ecosystem />} />
           <Route path="/board" element={<Board />} />
           <Route path="/get-paid" element={<GetPaid />} />
           <Route path="/council" element={<Council />} />
@@ -77,7 +80,10 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <WalletProvider>
       <BrowserRouter>
-        <Shell />
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="*" element={<Shell />} />
+        </Routes>
       </BrowserRouter>
     </WalletProvider>
   </StrictMode>,
