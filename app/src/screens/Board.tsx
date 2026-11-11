@@ -100,14 +100,14 @@ export function Board() {
             const pct = u ? Number((BigInt(u.spent) * 1000n) / (BigInt(u.cap) || 1n)) / 10 : 0;
             return (
               <tr key={l.id}>
-                <td><strong>{l.name}</strong></td>
-                <td><Amount raw={l.small_max} token={l.token} /></td>
-                <td><Amount raw={l.medium_max} token={l.token} /></td>
-                <td>
+                <td data-label="Lane"><strong>{l.name}</strong></td>
+                <td data-label="Small up to"><Amount raw={l.small_max} token={l.token} /></td>
+                <td data-label="Medium up to"><Amount raw={l.medium_max} token={l.token} /></td>
+                <td data-label="Spent this period">
                   <Amount raw={u?.spent ?? "0"} token={l.token} /> of <Amount raw={l.period_cap} token={l.token} />
                   <div className="bar" aria-hidden><i style={{ width: `${pct}%` }} /></div>
                 </td>
-                <td>{duration(BigInt(l.window_ns))}</td>
+                <td data-label="Window">{duration(BigInt(l.window_ns))}</td>
               </tr>
             );
           })}
@@ -146,13 +146,13 @@ function StandingList({ standing }: { standing: Standing[] }) {
             const next = BigInt(s.next_due_ns);
             return (
               <tr key={s.id}>
-                <td className="mono">{s.recipient}</td>
-                <td><Amount raw={s.amount} token={s.token} /> every {duration(BigInt(s.period_ns))}</td>
-                <td>{s.state === "Ended" ? "—" : next <= now ? "Due now" : `in ${duration(next - now)}`}</td>
-                <td>
+                <td data-label="To" className="mono">{s.recipient}</td>
+                <td data-label="Each period"><Amount raw={s.amount} token={s.token} /> every {duration(BigInt(s.period_ns))}</td>
+                <td data-label="Next">{s.state === "Ended" ? "—" : next <= now ? "Due now" : `in ${duration(next - now)}`}</td>
+                <td data-label="Guaranteed notice">
                   <Amount raw={s.notice_locked} token={s.token} /> locked ({s.notice_periods} period{s.notice_periods === 1 ? "" : "s"})
                 </td>
-                <td>{st}</td>
+                <td data-label="State">{st}</td>
               </tr>
             );
           })}

@@ -117,12 +117,12 @@
 .ln .hint a { color: var(--white); }
 
 /* open */
-.open { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0 2rem; margin-top: 2rem; }
-.open a { text-decoration: none; border-top: 1px solid var(--line-d); padding: 1.4rem 0; }
-.open h3 { font-size: 1.15rem; display: flex; justify-content: space-between; gap: 1rem; }
-.open h3 span { color: var(--grey-600); transition: color 0.3s; }
-.open a:hover h3 span { color: var(--tidal); }
-.open p { color: var(--grey-500); font-size: 0.93rem; margin-top: 0.5rem; }
+.open-links { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0 2rem; margin-top: 2rem; }
+.open-links a { text-decoration: none; border-top: 1px solid var(--line-d); padding: 1.4rem 0; }
+.open-links h3 { font-size: 1.15rem; display: flex; justify-content: space-between; gap: 1rem; }
+.open-links h3 span { color: var(--grey-600); transition: color 0.3s; }
+.open-links a:hover h3 span { color: var(--tidal); }
+.open-links p { color: var(--grey-500); font-size: 0.93rem; margin-top: 0.5rem; }
 
 /* faq */
 .faq { display: grid; grid-template-columns: 0.6fr 1.4fr; gap: 3rem; align-items: start; }
@@ -156,7 +156,7 @@
   .ln-hero::after { width: 100%; inset: auto 0 0 0; height: 60%; background: linear-gradient(0deg, #000 45%, transparent); }
   .hero-copy { padding: 0 0 3rem; }
   .ln-sec { padding: 4.5rem 0; }
-  .nums, .facts, .steps3, .open { grid-template-columns: 1fr; gap: 0; }
+  .nums, .facts, .steps3, .open-links { grid-template-columns: 1fr; gap: 0; }
   .num, .steps3 li { padding: 1.4rem 0 2rem; }
   .how li { grid-template-columns: 3rem 1fr; gap: 0.4rem 1rem; }
   .how li p { grid-column: 2; }
@@ -165,4 +165,18 @@
   .live .clock { text-align: left; }
   .txs li { grid-template-columns: 1fr; gap: 0.3rem; }
   .faq { grid-template-columns: 1fr; gap: 1.5rem; }
+  .rows .mono { display: block; margin-top: 0.15rem; }
+  .screen { padding: 1.1rem; }
+  .read { flex-wrap: wrap; row-gap: 0.6rem; }
+  .read input { flex-basis: 100%; }
+  .read button { margin-left: auto; }
+  .ln-say { padding: 10vh 0 8vh; }
+  .ln-hero .links { gap: 1.2rem 1.6rem; }
+}
+
+/* tablets: two columns where three or four would be cramped */
+@media (min-width: 701px) and (max-width: 1100px) {
+  .facts, .open-links { grid-template-columns: 1fr 1fr; }
+  .surface { grid-template-columns: 1fr 1.2fr; gap: 2rem; }
+  .ln-hero .art { width: 70%; opacity: 0.85; }
 }

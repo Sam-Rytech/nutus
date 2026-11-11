@@ -453,7 +453,7 @@ function Open() {
     <section className="ln-sec">
       <div className="wrap">
         <Label>Open by default</Label>
-        <div className="open">
+        <div className="open-links">
           {links.map(([t, d, href]) => (
             <a key={t} href={href} className="reveal" target="_blank" rel="noreferrer">
               <h3>{t} <span aria-hidden>↗</span></h3>

@@ -41,18 +41,33 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* ── floating navigation (landing and app) ── */
 .top-nav { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 20; width: min(1240px, 100% - 24px); display: flex; align-items: center; gap: 1.5rem; padding: 8px 8px 8px 18px; border-radius: 999px; background: rgba(14, 17, 22, 0.78); backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%); border: 1px solid var(--line-d); }
 .top-nav .logo { height: 26px; width: auto; display: block; }
-.top-nav nav { display: flex; gap: 1.4rem; margin-left: auto; font-size: 0.92rem; }
+.top-nav > nav { display: flex; gap: 1.4rem; margin-left: auto; font-size: 0.92rem; }
 .top-nav nav a { text-decoration: none; color: var(--grey-400); transition: color 0.2s; position: relative; }
 .top-nav nav a:hover, .top-nav nav a.active { color: var(--white); }
-.top-nav nav a.active::after { content: ""; position: absolute; left: 50%; bottom: -8px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--tidal); }
+.top-nav > nav a.active::after { content: ""; position: absolute; left: 50%; bottom: -8px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--tidal); }
 .top-nav .who { font-family: var(--mono); font-size: 0.82rem; color: var(--grey-400); max-width: 13rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pill { display: inline-flex; align-items: center; height: 38px; padding: 0 1rem; border-radius: 999px; border: 0; background: var(--white); color: var(--black); font: 600 0.9rem var(--sans); cursor: pointer; text-decoration: none; white-space: nowrap; }
+.pill { display: inline-flex; align-items: center; justify-content: center; height: 38px; padding: 0 1rem; border-radius: 999px; border: 0; background: var(--white); color: var(--black); font: 600 0.9rem var(--sans); cursor: pointer; text-decoration: none; white-space: nowrap; }
+
+/* the hamburger and its menu, narrow screens only */
+.burger { display: none; margin-left: auto; width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--line-d2); background: transparent; cursor: pointer; position: relative; flex: none; }
+.burger span { position: absolute; left: 12px; right: 12px; height: 1.5px; background: var(--white); border-radius: 2px; transition: transform 0.3s var(--ease), top 0.3s var(--ease); }
+.burger span:first-child { top: 16px; }
+.burger span:last-child { top: 24px; }
+.top-nav.is-open .burger span:first-child { top: 20px; transform: rotate(45deg); }
+.top-nav.is-open .burger span:last-child { top: 20px; transform: rotate(-45deg); }
+.menu { position: absolute; left: 0; right: 0; top: calc(100% + 8px); border-radius: 22px; padding: 0.6rem 1.2rem 1.2rem; background: var(--ink-900); border: 1px solid var(--line-d); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6); animation: menu-in 0.25s var(--ease); }
+.menu[hidden] { display: none; }
+@keyframes menu-in { from { opacity: 0; transform: translateY(-6px); } }
+.menu nav { display: grid; }
+.menu nav a { font-size: 1.5rem; font-weight: 300; letter-spacing: -0.03em; padding: 0.75rem 0; border-bottom: 1px solid var(--line-d); color: var(--grey-400); display: flex; align-items: center; justify-content: space-between; }
+.menu nav a.active { color: var(--white); }
+.menu nav a.active::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--tidal); }
+.menu-foot { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-top: 1.1rem; }
+.menu-foot .pill { margin-left: auto; }
 @media (max-width: 900px) {
-  .top-nav { gap: 0.6rem 0.8rem; flex-wrap: wrap; border-radius: 22px; padding: 8px 8px 10px 16px; }
-  .top-nav nav { order: 3; width: 100%; margin: 0; gap: 1.2rem; font-size: 0.85rem; padding: 0.15rem 0 0.1rem; overflow-x: auto; }
-  .top-nav nav a.active::after { bottom: -5px; }
-  .top-nav .who { display: none; }
-  .top-nav .pill { margin-left: auto; }
+  .top-nav { padding: 6px 6px 6px 16px; border-radius: 26px; }
+  .top-nav .wide { display: none; }
+  .burger { display: block; }
 }
 
 /* ── app shell ── */
@@ -194,3 +209,45 @@ ul { padding-left: 1.1rem; }
 .sentence-form label { display: inline; font-size: inherit; color: inherit; }
 .sentence-form input { color: var(--white); }
 .sentence-form input::placeholder { color: var(--grey-600); }
+
+/* ── responsiveness ── */
+.mono { word-break: normal; overflow-wrap: anywhere; }
+@media (max-width: 700px) {
+  /* tables become stacked rows: each cell labelled by its column */
+  table, thead, tbody, tr, th, td { display: block; }
+  table { overflow: visible; }
+  thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  tr { border-top: 1px solid var(--line-d); padding: 0.9rem 0; }
+  tbody tr:last-child { border-bottom: 1px solid var(--line-d); }
+  td { border: 0; padding: 0.3rem 0; display: grid; grid-template-columns: 8.5rem 1fr; gap: 1rem; }
+  td[data-label]::before { content: attr(data-label); font: 400 0.75rem var(--mono); color: var(--grey-500); padding-top: 0.2rem; }
+  td:not([data-label]) { grid-template-columns: 1fr; }
+  .pg-head { margin-bottom: 2.5rem; }
+  .pg-stats { grid-template-columns: 1fr 1fr; gap: 0 1.2rem; margin-top: 2rem; }
+  .pg-stat { padding: 0.9rem 0 1.1rem; }
+  .pg-stat .n { font-size: 2.2rem; }
+  .pg-stat .l { font-size: 0.8rem; }
+  .ap main { width: calc(100% - 32px); padding-top: 7rem; }
+  .ap h2 { margin-top: 2.8rem; }
+  .figures { grid-template-columns: 1fr 1fr; gap: 0 1.2rem; }
+  .figure .n { font-size: 2.2rem; }
+  .payout { padding: 1.2rem 0; }
+  .payout .amount { font-size: 1.3rem; }
+  .row .btn { flex: 0 0 auto; }
+  .sentence-form { line-height: 1.9; }
+  .sentence-form .who, .sentence-form .link { width: 100%; max-width: 100%; }
+  .verdict { grid-template-columns: 1fr; gap: 0.6rem; }
+  .big-read { flex-wrap: wrap; }
+  .big-read input { flex-basis: 100%; }
+  .big-read .go { margin-left: auto; }
+  .ap-foot .in { flex-direction: column; }
+  .ap-foot nav { flex-wrap: wrap; gap: 0.8rem 1.4rem; }
+}
+@media (min-width: 701px) and (max-width: 1100px) {
+  .pg-stats { grid-template-columns: repeat(4, 1fr); gap: 0 1.2rem; }
+  .pg-stat .n { font-size: 2.6rem; }
+}
+@media (max-width: 700px) {
+  .sentence-form .link { width: calc(100% - 0.7em); }
+  .verdict .tag { justify-self: start; }
+}
