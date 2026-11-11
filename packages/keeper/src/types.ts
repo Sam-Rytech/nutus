@@ -34,8 +34,10 @@ export interface Standing {
   next_due_ns: string;
   ends_at_ns: string | null;
   buffer: string;
-  /** Transfer awaiting its callback, if any. */
-  in_flight: unknown | null;
+  /** Transfer awaiting its callback, if any (current contract). Absent, not null, when the view omits it. */
+  in_flight?: unknown | null;
+  /** The same, as the testnet v2 contract reports it (before `in_flight`). */
+  sending?: boolean;
   state: StandingState;
 }
 

@@ -83,6 +83,8 @@ export const appPage = (s: Pick<Snapshot, "app" | "instance">, path: string) => 
 };
 
 const within = (t: bigint, from: bigint, to: bigint) => t >= from && t < to;
+/** In flight: `in_flight` on the current contract, `sending` on the testnet v2 one. */
+const inFlight = (r: Instance.Standing) => r.in_flight != null || (r as { sending?: boolean }).sending === true;
 const lane = (id: string) => id.charAt(0).toUpperCase() + id.slice(1);
 
 /** Last time each council member voted, judged by the submission time of the newest proposal they voted on. */
@@ -162,7 +164,7 @@ export function alerts(s: Snapshot, from: bigint, to: bigint): Alert[] {
   }
 
   for (const r of s.standing) {
-    if (r.state !== "Active" || r.in_flight) continue;
+    if (r.state !== "Active" || inFlight(r)) continue;
     const due = BigInt(r.next_due_ns);
     if (within(due, from, to) && BigInt(r.buffer) < BigInt(r.amount)) {
       const held = esc(amount(r.buffer, r.token, s.tokens));
@@ -206,7 +208,7 @@ export function status(s: Snapshot, now: bigint): string {
     const e = s.escalations.get(p.id);
     return e?.status === "InProgress" && BigInt(e.submission_time) + BigInt(s.policy.proposal_period) <= now;
   });
-  const short = s.standing.filter((r) => r.state === "Active" && !r.in_flight && BigInt(r.next_due_ns) <= now && BigInt(r.buffer) < BigInt(r.amount));
+  const short = s.standing.filter((r) => r.state === "Active" && !inFlight(r) && BigInt(r.next_due_ns) <= now && BigInt(r.buffer) < BigInt(r.amount));
   const quiet = [...lastVotes(s)].filter(([, t]) => t === null || t + QUIET_AFTER <= now).map(([m]) => m);
 
   const parts: string[] = ["<b>What needs the council</b>"];

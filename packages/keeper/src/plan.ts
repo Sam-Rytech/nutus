@@ -42,7 +42,8 @@ export function planPayouts(s: Snapshot, now: bigint): Action[] {
 export function planStanding(s: Snapshot, now: bigint): Action[] {
   const out: Action[] = [];
   for (const st of s.standing) {
-    if (st.in_flight !== null || st.state === "Ended") continue;
+    // `!= null`: an omitted field is undefined, and that means nothing is in flight.
+    if (st.in_flight != null || st.sending === true || st.state === "Ended") continue;
     const noticed = typeof st.state === "object";
     if (!noticed && s.config.paused) continue; // notice pays even while paused
     const nextDue = BigInt(st.next_due_ns);

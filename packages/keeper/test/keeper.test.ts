@@ -100,6 +100,12 @@ describe("plan: standing", () => {
     expect(kinds(snap({ standing: [st] }))).toEqual(["pay_due:0"]);
   });
 
+  it("pays a due payment from the deployed view, which has no in_flight field (only sending: false)", () => {
+    const { in_flight: _, ...live } = standing({});
+    expect(kinds(snap({ standing: [{ ...live, sending: false }] }))).toEqual(["pay_due:0"]);
+    expect(kinds(snap({ standing: [{ ...live, sending: true }] }))).toEqual([]);
+  });
+
   it("skips sending, ended and not-yet-due payments", () => {
     const s = snap({
       standing: [
