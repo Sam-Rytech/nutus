@@ -20,10 +20,10 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 | Instance contract | A | [x] every §4.5 method implemented and tested; v2 live on testnet |
 | Factory and setup | A | [x] v2 factory on testnet; demo DAO set up through a real proposal |
 | Contract tests | A | [x] 84 instance + 15 factory unit, property test (I1–I5), 8 sandbox scenarios vs real Sputnik (CI) |
-| Keeper | A | [x] `packages/keeper`; hourly GitHub Actions round as keeper.nutus-dev.testnet (needs the `KEEPER_PRIVATE_KEY` secret) |
+| Keeper | A | [x] `packages/keeper`; runs inside `/api/tick` every 5 min (cron-job.org) as keeper.nutus-dev.testnet, GitHub Actions hourly as backup |
 | Report port | B | [x] rebuilt from scratch (old scan lost); `packages/report` + `DEFINITIONS.md`; mainnet scan: 174 DAOs, 8,339 proposals |
 | Core (builders, preflight, maths) | B | [x] `packages/core`: ABI types, client, threshold maths, builders, preflight (19 tests, live-checked) |
-| Web app | B | [x] six screens live at https://nutus.vercel.app (testnet v2); wallet signing verified (file, object, approve via Meteor); preflight in the council inbox |
+| Web app | B | [x] home + five screens live at https://nutus.vercel.app (testnet v2), redesigned 11 Nov; wallet signing verified (file, object, approve via Meteor); preflight in the council inbox |
 | Seat watch | B | [x] silent seats + freeze distance in the report and the council inbox; seat changes drafted, never filed |
 | Notifications | B | [x] @nutusalertbot: webhook + tick functions on nutus.vercel.app, per-chat settings in Upstash Redis, 15-min tick from `.github/workflows/notify.yml` |
 | Testnet end-to-end | AB | [x] every flow run with real transactions (see Testnet log): objection, approval, settle, preflight, record seed, recurring pay |
@@ -32,7 +32,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 ---
 
 ## Phase 0: Planning (done)
-- [x] Mainnet scan: 138 DAOs, 5,941 proposals, five failures measured (`data/`, `scripts/`)
+- [x] Mainnet scan: 138 DAOs, 5,941 proposals, five failures measured (`data/`, `scripts/`) — *retired 10 Nov: the data was lost; replaced by the 174-DAO rescan*
 - [x] Product plan and explainer
 - [x] Renamed Quiet Yes → **Nutus** (2026-11-08; no clashes found)
 - [x] Scope: full product, all six parts, no time-boxing
@@ -108,7 +108,7 @@ Owners: **A** = Chain lead · **B** = Data and product lead · **AB** = both.
 - [x] Keeper: release / escalate / pay_due / settle, idempotent (17 tests; skips short buffers and manual-filing cases instead of burning gas)
 - [x] `THREAT_MODEL.md` (actors, invariants → tests, residual risks)
 - [x] Stuck-transfer recovery: DAO-only `resolve_stuck_payout` / `resolve_stuck_standing` after 24 h in flight (unit + property tests)
-- [x] Hosted keeper: `.github/workflows/keeper.yml`, hourly, as `keeper.nutus-dev.testnet`
+- [x] Hosted keeper: `.github/workflows/keeper.yml`, hourly, as `keeper.nutus-dev.testnet` (since 11 Nov the primary is `/api/tick` every 5 min; this is the backup)
 
 **B**
 - [x] Seat watch: silent in 60 days, freeze distance, drafted seat proposals (person files)
@@ -156,7 +156,7 @@ Also seen in search (not read): Hat Tip ("three approval tiers in a Sputnik DAO"
 1. **Silence never kills a payout:** objection windows (default-pay, any council member can stop it) and Medium timeouts that file a normal DAO proposal. Petty Cash auto-pays inside rules with no objection path.
 2. **Guaranteed notice for recurring pay:** money locked so even a DAO vote can't withdraw it; paid while paused. Nobody else has standing pay at all.
 3. **Payouts that don't fail:** recipient registered on release and on escalation (found by our sandbox suite; Petty Cash pays registration too, Trezu has an open P0 about bulk USDC payouts going missing).
-4. **Evidence from mainnet:** the scan (138 DAOs, 5,941 proposals) and seat watch — no other entry measures the problem. *Depends on Builder B's report.*
+4. **Evidence from mainnet:** the scan (174 active DAOs, 8,339 proposals: 34% of seats silent, 171 passed-then-failed, 84 of 115 never repaid) and seat watch — no other entry measures the problem. *Depends on Builder B's report.*
 5. Records traceable to real payments that raise limits (the track's own example — expect competition here).
 
 **Honest differences to be ready for:** Petty Cash keeps money in the DAO treasury until each payment; Nutus moves a budget into the instance (so it can lock notice and reserve amounts). Petty Cash deleted its contract's access keys; Nutus instances are global code by hash with no keys, which is the same guarantee.

@@ -34,12 +34,12 @@ Superseded on 11 Nov: the water-filled window and the full-hero 3D mark.
 | `ash-200` | `#D9DDE2` | Hairlines and borders on light |
 | `paper` | `#F5F7F9` | Light sections (the mainnet findings) |
 | `white` | `#FFFFFF` | Primary text on dark |
-| `tidal` | `#13B5CB` | The accent: water, primary buttons, focus, the wordmark's n and u |
+| `tidal` | `#13B5CB` | The accent, as a hint only: status dots, progress lines, one underline, focus rings, the wordmark's n and u |
 | `tidal-deep` | `#0B8FA3` | Cyan text and links on light backgrounds (contrast) |
 | `tidal-glow` | `#13B5CB` at 12–35% | Glass tint, light blooms, caustics |
 | `alert` | `#E5484D` | Errors only (failed transfer, wallet error) |
 
-Status uses the water, not new colours: **waiting** = tube part-full, **paid** = full tidal, **objected** = water drained to grey, **failed** = alert outline.
+Status uses one thin line, not new colours: **waiting** = tidal line with a dot, **paid** = white, **objected** = grey, **failed** = alert.
 
 **Type**
 
@@ -74,13 +74,13 @@ Every section answers something a judge or a DAO needs to know; each shows real 
 
 Payouts, Council inbox, Get paid, DAO report, Set up — **dark by default**, the glass top navigation replaces the sidebar, content max 1,120 px.
 
-- Every payout row: recipient and amount in mono, the water window, the one action that matters (Object / Approve / Release).
+- Every payout row: recipient in mono, amount in light type, the window as a thin line, the one action that matters (Object / Approve / Release).
 - Section heads two-tone; empty states are invitations with one action.
 - The Report keeps its findings layout but borrows section 3's numerals.
 
 ## Build order
 
-1. Tokens, fonts, glass and water primitives (`Window` component rewritten as the tube).
+1. Tokens, fonts and shared shell (floating nav, page head).
 2. Landing page; review on a local preview before deploying.
 3. App screens on the new shell.
 4. Video capture on the 12th–13th uses the new site.

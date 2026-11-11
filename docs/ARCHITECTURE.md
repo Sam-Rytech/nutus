@@ -69,7 +69,7 @@ Related docs: `NUTUS_SPEC.md` (full behaviour), `PROGRESS.md` (tracker), `THREAT
 | C5 | Core library | `packages/core` | TypeScript | **B** | Shared types (from the ABI), proposal builders, vote-threshold maths, preflight |
 | C6 | Report service | `packages/report` | TypeScript, SQLite cache | **B** | Reads DAO history over RPC; F1–F5 metrics; Fix-this proposals; ecosystem stats |
 | C7 | Notifications | `packages/notify` | TypeScript (Telegram) | **B** | Pushes window starts, shortfalls, quiet seats, bonds to recover |
-| C8 | Web app | `app/` | Next.js, NEAR wallet selector | **B** | Six screens (§7) |
+| C8 | Web app | `app/` | Vite + React, NEAR wallet selector (Meteor), three.js hero | **B** | Home + five screens (§7) |
 | C9 | Docs and demo | `docs/` | Markdown, video | **A + B** | README, THREAT_MODEL, PITCH, demo video |
 
 ---
@@ -200,10 +200,10 @@ DAO withdraw into committed_notice ─► REFUSED (I2)
 | Seat watch | Vote records, policy | Seat status (active < 30 days, quiet 30–60, silent > 60), freeze distance, drafted seat proposals (filed by a person) |
 | Preflight | Draft proposal, token, recipient | Adds `storage_deposit` / `near_deposit` actions, or warnings |
 | Keeper | Instance views and events | `release`, `escalate`, `pay_due`, `settle_escalation` calls |
-| Notify | Events | Telegram messages to linked council members |
-| Ecosystem | Whole-network scan | Landing-page stats (138 DAOs, 5,941 proposals) |
+| Notify | Instance and DAO views | Telegram alerts to subscribed council chats (as they happen or as summaries) |
+| Ecosystem | Whole-network scan | Home-page findings (174 active DAOs, 8,339 proposals; `data/scan/summary.json`) |
 
-The report port is regression-tested against the saved mainnet scan in `data/` (24% vs 3% lapse rate, 62/136 zero-vote, 216/1,835 repeats, 199/496 silent seats, 125 failed executions, 0 bounties).
+The original scan and its figures were lost and are **retired**; the report was rebuilt from this spec with fixture tests per metric and written definitions (`packages/report/DEFINITIONS.md`). The current numbers come only from `pnpm --filter @nutus/report scan`.
 
 ---
 
@@ -247,8 +247,8 @@ Owns:
 - UI quality: HIG structure, self-hosted fonts, legal pages.
 
 Done means:
-- the report reproduces the scan numbers;
-- all six screens work against testnet;
+- the report reproduces its own scan (`data/scan/summary.json`);
+- the home page and all five screens work against testnet;
 - every Fix-this proposal files and executes on the demo DAO;
 - preflight fixes an unregistered recipient end to end.
 

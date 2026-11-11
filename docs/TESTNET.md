@@ -12,7 +12,7 @@ irm https://github.com/near/near-cli-rs/releases/latest/download/near-cli-rs-ins
 
 ## 1. A funded testnet account
 
-Create one in a wallet (e.g. MyNearWallet / Meteor on testnet) and fund it from the testnet faucet, then import its key into the CLI keychain:
+Create one in a wallet (e.g. Meteor on testnet; MyNearWallet no longer accepts app connections) and fund it from the testnet faucet, then import its key into the CLI keychain:
 
 ```bash
 near account import-account using-web-wallet network-config testnet
