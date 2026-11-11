@@ -12,4 +12,5 @@ app/dist/
 
 # Private notes, not for the repo
 docs/HANDOVER.md
+docs/PITCH.md
 .notify-state.json

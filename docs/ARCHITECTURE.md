@@ -5,7 +5,7 @@
 
 Nutus is an operating layer that sits beside a NEAR DAO treasury (Sputnik DAO v2, which Trezu also runs on). The council decides once; small payouts then go through unless someone objects, recurring pay runs with guaranteed notice, silent seats are flagged before they freeze the treasury, and every payout is checked before the vote. The DAO's own contract is never changed.
 
-Related docs: `NUTUS_SPEC.md` (full behaviour), `PROGRESS.md` (tracker), `THREAT_MODEL.md` (to be written), `PITCH.md`.
+Related docs: `NUTUS_SPEC.md` (full behaviour), `PROGRESS.md` (tracker), `THREAT_MODEL.md`.
 
 ---
 

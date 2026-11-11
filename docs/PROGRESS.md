@@ -166,7 +166,7 @@ Also seen in search (not read): Hat Tip ("three approval tiers in a Sputnik DAO"
 Source: [nearhackathon.com](https://nearhackathon.com/), [Social Money brief](https://github.com/nearai/near-hackathon-prompt-examples/blob/main/tracks/12-social.md).
 
 - **Deadline: 14 Nov 2026 23:59 UTC** (development ends). Judging 16–18 Nov.
-- **Repository must be public** ("Judges can't open a private one"). Sam-Rytech/nutus is private today.
+- **Repository must be public** ("Judges can't open a private one"). Sam-Rytech/nutus made public 11 Nov.
 - **Demo post on X** tagging @NEARProtocol and #NEARHackathon, with video or screenshots. Both the repo link and the post link are required.
 - Form: project name, team lead, email, team size, tracks (multi-select allowed), NEAR wallet for the prize, repo, demo post, "What did you build?" (20–2,000 chars), optional website.
 - **Screening: Claude Code and Codex check every project "runs and does what the README says"** before human judges. The README must only claim what runs.
