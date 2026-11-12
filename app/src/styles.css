@@ -176,9 +176,9 @@ ul { padding-left: 1.1rem; }
 /* ── get paid: the payout as one sentence ── */
 .sentence-form { font-size: clamp(1.5rem, 3.2vw, 2.4rem); font-weight: 300; letter-spacing: -0.03em; line-height: 1.7; max-width: 52rem; }
 .sentence-form input, .sentence-form select { display: inline-block; width: auto; font: inherit; letter-spacing: inherit; padding: 0 0.1rem; border-bottom-width: 1px; vertical-align: baseline; }
-.sentence-form .amt { width: 4.5ch; text-align: right; }
-.sentence-form .who { width: 13ch; font-family: var(--mono); font-size: 0.82em; }
-.sentence-form .link { width: 18ch; font-family: var(--mono); font-size: 0.82em; }
+.sentence-form .amt { width: var(--w, 4.5ch); max-width: 100%; text-align: right; }
+.sentence-form .who { width: var(--w, 13ch); max-width: 100%; font-family: var(--mono); font-size: 0.82em; }
+.sentence-form .link { width: var(--w, 18ch); max-width: 100%; font-family: var(--mono); font-size: 0.82em; }
 .sentence-form .sym { color: var(--grey-500); }
 .sentence-extra { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.6rem 2.5rem; margin-top: 2.5rem; max-width: 52rem; }
 .verdict { margin-top: 2.5rem; display: grid; grid-template-columns: auto 1fr; gap: 1rem; align-items: start; max-width: 46rem; padding-top: 1.4rem; border-top: 1px solid var(--line-d); }

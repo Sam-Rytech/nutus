@@ -17,6 +17,9 @@ function smallLimit(lane: Lane, rec: Rec, cooldownNs: bigint): bigint {
   return v < BigInt(lane.small_max) ? v : BigInt(lane.small_max);
 }
 
+/** Sentence inputs widen with what's typed, so the whole value stays readable. */
+const grow = (text: string, min: number, pad = 1) => ({ "--w": `${Math.max(min, text.length + pad)}ch` }) as React.CSSProperties;
+
 export function GetPaid() {
   const id = instanceId();
   const r = reader(id);
@@ -109,17 +112,17 @@ export function GetPaid() {
         Pay{" "}
         <label className="vh-label">
           <span className="vh">Amount{token ? ` in ${token.symbol}` : ""}</span>
-          <input className="amt" inputMode="decimal" value={amountText} placeholder="120" onChange={(e) => setAmountText(e.target.value)} aria-invalid={!!amountError} />
+          <input className="amt" style={grow(amountText, 3, 1.5)} inputMode="decimal" value={amountText} placeholder="120" onChange={(e) => setAmountText(e.target.value)} aria-invalid={!!amountError} />
         </label>{" "}
         <span className="sym">{token?.symbol ?? ""}</span> to{" "}
         <label className="vh-label">
           <span className="vh">Pay to (defaults to your connected account)</span>
-          <input className="who" value={recipient} placeholder={accountId ?? "you.testnet"} onChange={(e) => setRecipient(e.target.value.trim())} />
+          <input className="who" style={grow(recipient || accountId || "you.testnet", 13)} value={recipient} placeholder={accountId ?? "you.testnet"} onChange={(e) => setRecipient(e.target.value.trim())} />
         </label>{" "}
         for{" "}
         <label className="vh-label">
           <span className="vh">Link to the work</span>
-          <input className="link" value={link} placeholder="https://github.com/…/pull/42" onChange={(e) => setLink(e.target.value)} />
+          <input className="link" style={grow(link, 18)} value={link} placeholder="https://github.com/…/pull/42" onChange={(e) => setLink(e.target.value)} />
         </label>
         .
       </div>

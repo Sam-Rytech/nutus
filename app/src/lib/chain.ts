@@ -16,24 +16,27 @@ export type Lane = Instance.Lane;
 
 // ───────────── amounts ─────────────
 
-const decimalsCache = new Map<string, Promise<number>>([["near", Promise.resolve(24)]]);
-const symbolCache = new Map<string, Promise<string>>([["near", Promise.resolve("NEAR")]]);
+// Keyed by network and token: the same id can be a different contract on mainnet.
+const metaCache = new Map<string, Promise<{ decimals: number; symbol: string }>>();
 
-function meta(token: string) {
-  if (!decimalsCache.has(token)) {
-    const m = view<{ decimals: number; symbol: string }>(token, "ft_metadata").catch(() => ({ decimals: 0, symbol: token }));
-    decimalsCache.set(token, m.then((x) => x.decimals));
-    symbolCache.set(token, m.then((x) => x.symbol));
+function meta(token: string, net: "testnet" | "mainnet") {
+  if (token === "near") return Promise.resolve({ decimals: 24, symbol: "NEAR" });
+  const key = `${net}:${token}`;
+  if (!metaCache.has(key)) {
+    const v = net === "mainnet" ? mainnetView : view;
+    metaCache.set(key, v<{ decimals: number; symbol: string }>(token, "ft_metadata").catch(() => ({ decimals: 0, symbol: token })));
   }
-  return Promise.all([decimalsCache.get(token)!, symbolCache.get(token)!]);
+  return metaCache.get(key)!;
 }
 
-export function useToken(token: string | undefined) {
+export function useToken(token: string | undefined, net: "testnet" | "mainnet" = "testnet") {
   const [m, setM] = useState<{ decimals: number; symbol: string } | null>(token === "near" ? { decimals: 24, symbol: "NEAR" } : null);
   useEffect(() => {
     if (!token) return;
-    meta(token).then(([decimals, symbol]) => setM({ decimals, symbol }));
-  }, [token]);
+    let live = true;
+    meta(token, net).then((x) => live && setM(x));
+    return () => { live = false; };
+  }, [token, net]);
   return m;
 }
 

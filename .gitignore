@@ -14,3 +14,6 @@ app/dist/
 docs/HANDOVER.md
 docs/PITCH.md
 .notify-state.json
+
+# Demo video workspace (renders, audio)
+demo-video/

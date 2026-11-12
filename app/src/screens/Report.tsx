@@ -126,13 +126,13 @@ function Findings({ h, f, pays, seats, records, series, net }: NonNullable<Retur
 }
 
 function FixLane({ dao, token, small, monthly, council, net }: { dao: string; token: string; small: bigint; monthly: bigint; council: string[]; net: string }) {
-  const m = useToken(net === "testnet" ? token : undefined);
-  const fmt = (v: bigint) => (m ? `${formatAmount(v, m.decimals)} ${m.symbol}` : `${v} (base units of ${token})`);
+  const m = useToken(token, net === "testnet" ? "testnet" : "mainnet");
+  const fmt = (v: bigint) => (m ? `${formatAmount(v, m.decimals)} ${m.symbol}` : "…");
   const q = new URLSearchParams({ dao, token, small: String(small), cap: String(monthly > small ? monthly : small * 4n), council: council.join(",") });
   return (
     <div className="notice good">
       <p style={{ marginTop: 0 }}>
-        A lane in <span className="mono">{token === "near" ? "NEAR" : token}</span> with small payouts up to <strong>{fmt(small)}</strong> (this DAO's median payment) and a monthly budget of{" "}
+        A lane in {m && token !== "near" && m.symbol !== token ? <>{m.symbol} (<span className="mono">{token.length > 24 ? `${token.slice(0, 8)}…${token.slice(-6)}` : token}</span>)</> : <span className="mono">{token === "near" ? "NEAR" : token}</span>} with small payouts up to <strong>{fmt(small)}</strong> (this DAO's median payment) and a monthly budget of{" "}
         <strong>{fmt(monthly > small ? monthly : small * 4n)}</strong> (its recent small payments, per month) would have paid these without a vote, unless someone objected.
       </p>
       <Link className="btn" to={`/setup?${q}`}>Draft the setup proposal</Link>
