@@ -274,6 +274,7 @@ Source: [nearhackathon.com](https://nearhackathon.com/), [Social Money brief](ht
 | 2026-11-11 | **Fix this: recurring pay**: proposal 7 adds recurring payment #0 (5 tUSDC weekly to c3, 1 period notice locked) | `6tsd7N7uinoBG6tNB9CFcKyPrtr4ZLyzw81cTAtpZqmD`, `8wY1jhLHQdYV6kZuAyFafng16bjPqFZM1rcsdXVw1H9U`, `7CVzEqtEshF1KuUfBtCNbcvxWk3WW11gJuhTBAV3XTdm` | B |
 | 2026-11-11 | Proposal 8 funds #0's buffer with 20 tUSDC (`ft_transfer_call` … `fund_standing:0`) | `EqBbo5FAHmN1oacwUWGNy3EQKeTa4TJhFwW3jjSKJ14k`, `FoKxtxj8fCSq6WLLRp1ttZ4hpHMsmuGXhp6SPYCPddVo`, `HYPy85uY4xbSNqPjCDdsopUTmwdVV7HUEK5sCvpNdg8L` | B |
 | 2026-11-11 | **Recurring pay runs:** the keeper (now inside `/api/tick`, timed by cron-job.org) pays #0's first 5 tUSDC to c3; next due 18 Nov | `9gaPg3ZnS7ynNe3sdgPrfpukQ6ew8WkukXf5eyUnQZBE` | AB |
+| 2026-11-12 | **Small payout paid with no votes:** payout #1 (30 tUSDC to nutus-fund6.testnet, filed 10 Nov) — its 48 h window closed with no objection and the keeper released it (`release`, payout 1) | `9JTUS8y4qSCQkA4xpDXXVBvDmZtYcicm169h28U7i9gV` | AB |
 
 ## Blockers
 
