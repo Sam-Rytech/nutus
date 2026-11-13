@@ -15,6 +15,19 @@ Nutus sits beside a NEAR DAO treasury (Sputnik DAO v2 / Trezu). The council deci
 
 The DAO's own contract is never changed.
 
+## Try it
+
+Everything below runs against the live testnet demo (DAO `nutus-demo.sputnikv2.testnet`, instance `nutus-demo.v2.nutus-dev.testnet`). Steps 1–4 need no wallet.
+
+1. **Open https://nutus.vercel.app/board.** You see the payouts waiting, each with its objection window ("Pays in 26 h unless the council objects"). Under **History**, payout #1 (30 tUSDC to `nutus-fund6.testnet`) reads **Paid** and **Small: no vote needed**: its window closed with no objection and the keeper released it on 12 Nov 2026 (tx `9JTUS8y4qSCQkA4xpDXXVBvDmZtYcicm169h28U7i9gV`). Nobody voted.
+2. **Open https://nutus.vercel.app/report, type `burrow.sputnik-dao.near`, click Read.** After a few seconds of reading mainnet you see that DAO's last year: lapsed small payments, repeat payments, silent council seats, proposals that passed and then failed to execute. Under **Fix this**, a lane sized from its own payments (for example "small payouts up to 50,000 USDt") with the setup proposal drafted.
+3. **Open https://nutus.vercel.app/council, scroll to "Check a payment before the vote".** Enter recipient `nutus-newcomer.testnet` and amount `5`, click **Check payment**. You see **Fixed:** the account isn't registered with the token, so a registration step was added and the payment can't fail after the vote.
+4. **On the same page, "Object before it pays"** lists every payout a council member can still stop; **Payouts → Recurring pay** shows a weekly payment with its notice locked ("5 tUSDC locked (1 period)").
+5. **With a testnet wallet (Meteor), open https://nutus.vercel.app/get-paid.** Connect, fill in "Pay `1` tUSDC to *you* for *a link*", and the page tells you before signing how it will be paid ("Small. Paid 2 days after you file unless a council member objects. No vote needed."). Click **File payout** and approve in the wallet (0.1 NEAR deposit, refunded when the payout finishes): it appears on the board with its window running, and the Telegram bot posts it.
+6. **Telegram:** open [@nutusalertbot](https://t.me/nutusalertbot) and send `/status`: you get what needs the council right now.
+
+The same, locally: `pnpm install && pnpm --filter @nutus/app dev`, then open http://localhost:5173 (reads the same testnet instance). Tests: see [Tests](#tests).
+
 ## What's running
 
 | | Where |
@@ -126,3 +139,25 @@ pnpm -r test                                                # core, report, keep
 ## Trust statement
 
 The instance code is fixed by hash. Only the DAO account can configure, fund, pause or withdraw, and it can never withdraw locked notice. Any account can trigger a release or payment that is already due. The builders have no admin role. The web app and the bot only read public chain data; every transaction is signed in your own wallet.
+
+## Built on NEAR
+
+- **Sputnik DAO v2**: Nutus works beside an unchanged DAO. Setup is one normal FunctionCall proposal; an objection files a normal Transfer proposal with the DAO's exact bond; `act_proposal` approve/finalize settles it; the DAO's policy decides who is council. Tested against the real Sputnik wasm in `contracts/tests`.
+- **Global contracts (NEP-591)**: the instance code is deployed once and every DAO's instance uses it by code hash, so nobody (us included) can change an instance after it is created.
+- **Named accounts and sub-accounts**: the factory creates each instance as its sub-account (`nutus-demo.v2.nutus-dev.testnet`), with no access keys.
+- **NEP-141 fungible tokens**: budgets and payouts in any token (the demo uses tUSDC); recipient storage is registered on release (`storage_deposit` + `ft_transfer` in one batch), and preflight adds the same step to DAO proposals.
+- **Wallet**: NEAR Wallet Selector with Meteor Wallet; NEAR RPC (FastNEAR) for all reads, mainnet and testnet.
+
+## Built with
+
+- Contracts: `near-sdk` 5, `cargo-near`, `near-workspaces` 0.24 (sandbox tests against the real Sputnik wasm); the property tests are seeded and hand-written (`NUTUS_PROP_SEEDS`).
+- TypeScript: `@near-wallet-selector` (core, modal-ui, meteor-wallet), React 19, Vite, React Router, three.js (the home page's 3D ledger), `tsx`, Vitest.
+- Hosting: Vercel (static app + two serverless functions), Upstash Redis (bot settings), cron-job.org (the 5-minute tick), GitHub Actions (CI and backup keeper).
+- Fonts: Public Sans and Geist Mono, self-hosted.
+- AI assistance: much of the code and docs were written with Claude Code (Anthropic) as a coding assistant, directed and reviewed by the team.
+
+## NEAR HACKATHON
+
+Built for NEAR HACKATHON, November 2026, in the Social Money track. All code in this repository was written during the hackathon; the first commit is from 9 November 2026.
+
+One of the builders also entered a second, independent project: **ATTO** ([github.com/KayProject/ATTO](https://github.com/KayProject/ATTO), [atto.namite.xyz](https://atto.namite.xyz)), a safer way to buy and sell NEAR names. The two projects share no code.
