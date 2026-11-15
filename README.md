@@ -160,7 +160,7 @@ The instance code is fixed by hash. Only the DAO account can configure, fund, pa
 
 Built for NEAR HACKATHON, November 2026, in the Social Money track. All code in this repository was written during the hackathon; the first commit is from 9 November 2026.
 
-One of the builders also entered a second, independent project: **ATTO** ([github.com/KayProject/ATTO](https://github.com/KayProject/ATTO), [atto.namite.xyz](https://atto.namite.xyz)), a safer way to buy and sell NEAR names. The two projects share no code.
+The same two builders also built a second, independent project for NEAR HACKATHON: **ATTO** ([github.com/KayProject/ATTO](https://github.com/KayProject/ATTO), [atto.namite.xyz](https://atto.namite.xyz)), a safer way to buy and sell NEAR names. Each project was submitted separately, under a different email. The two projects share no code.
 
 ## License
 
